@@ -19,9 +19,34 @@
 #include "myFastJetBase.h"
 #include "Pythia8/Pythia.h"
 
-using namespace std;
+#include "TH2F.h"
 
-class myexampleAnalysis{
+using namespace std;
+using namespace fastjet;
+
+class myexampleAnalysis
+{
+    public:
+        myexampleAnalysis(int imagesize = 25);
+        ~myexampleAnalysis();
+        
+        void Begin();
+        void AnalyzeEvent(int iEvt, Pythia8::Pythia *pythia8,  
+            Pythia8::Pythia *pythia_MB, int NPV, int pixels, float range);
+
+        void End();
+        void DeclareBranches();
+        void ResetBranches();
+
+        void Debug(int debug)
+        {
+            fDebug = debug;
+        }
+
+        void SetOutName(const string &outname)
+        {
+            fOutName = outname;
+        }
     private:
         int  ftest;
         int  fDebug;
@@ -30,126 +55,89 @@ class myexampleAnalysis{
         TFile *tF;
         TTree *tT;
         myTools *tool;
-	
-	float fTMETx;
-	float fTMETy;
-	float fTLepx;
-	float fTLepy;
-	float fTLepz;
-
-	float fTlep1x;
-	float fTlep1y;
-	float fTlep1z;
-	int fTlep1id;
-	float fTEventMass;
-
-	float fTlep2x;
-	float fTlep2y;
-	float fTlep2z;
-	int fTlep12d;
-
-	float fTjetm;
-	float fTjetpt;
 
         // Tree Vars ---------------------------------------
-        int              fTEventNumber;
-        int              fTPassBoost;
-        int              fTPassResolve;
-	int fTwhichfat;
-        // Els
-        static const int MaxNEles    = 5;
-        int              fTNElesFilled;
-        float            fTElesPt     [MaxNEles];
-        float            fTElesEta    [MaxNEles];
-        float            fTElesPhi    [MaxNEles];
-        float            fTElesE      [MaxNEles];
-        int              fTElesCharge [MaxNEles];
-        // Muons
-        static const int MaxNMuons    = 5;
-        int              fTNMuonsFilled;
-        float            fTMuonsPt     [MaxNMuons];
-        float            fTMuonsEta    [MaxNMuons];
-        float            fTMuonsPhi    [MaxNMuons];
-        float            fTMuonsE      [MaxNMuons];
-        int              fTMuonsCharge [MaxNMuons];
-        // Bosons 
-        static const int MaxNBosons    = 5;
-        int              fTNBosonsFilled;
-        float            fTBosonPt [MaxNBosons];
-        float            fTBosonEta[MaxNBosons];
-        float            fTBosonPhi[MaxNBosons];
-        float            fTBosonM  [MaxNBosons];
-        int              fTBosonID [MaxNBosons];
+        int fTEventNumber;
+        int fTNPV;
 
-        static const int MaxNJetSmallR = 20;
-        int              fTNJetsSmallRFilled;
-        float            fTJsmallPt        [MaxNJetSmallR];
-        float            fTJsmallEta       [MaxNJetSmallR];
-        float            fTJsmallPhi       [MaxNJetSmallR];
-        float            fTJsmallM         [MaxNJetSmallR];
-        float            fTJsmallCharge    [MaxNJetSmallR];
-	float            fTJsmallTrackpT    [MaxNJetSmallR];
-	float            fTJsmallTrackMass    [MaxNJetSmallR];
-        float            fTJsmallTrackpTR    [MaxNJetSmallR];
-        float            fTJsmallTrackMassR    [MaxNJetSmallR];
-	int              fTJsmallBtag      [MaxNJetSmallR];
-	int              fTJsmallCtag      [MaxNJetSmallR];
-	int              fTJsmallFtag      [MaxNJetSmallR];
-        int              fTJsmallWPicked   [MaxNJetSmallR];
-	int              fTJsmallBPicked   [MaxNJetSmallR];
-	int fTsmallntrack[MaxNJetSmallR];
-	int fTsmallntrackR[MaxNJetSmallR];
-	
-	float            fTJsmallScale        [MaxNJetSmallR];
-	float            fTJsmallAngle        [MaxNJetSmallR];
-	float            fTJsmallDrop        [MaxNJetSmallR];
-	float            fTJsmallAdd        [MaxNJetSmallR];
+        void SetupInt(int & val, TString name);
+        void SetupFloat(float & val, TString name);
 
-	float            fTJsmallScaleP        [MaxNJetSmallR];
-        float            fTJsmallAngleP        [MaxNJetSmallR];
-        float            fTJsmallDropP        [MaxNJetSmallR];
-        float            fTJsmallAddP        [MaxNJetSmallR];
+        vector<TString> names;
+        vector<float> pts;
+        vector<float> ms;
+        vector<float> etas;
+        vector<float> nsub21s;
+        vector<float> nsub32s;
+        vector<int>   nsubs;
 
-	float fTtopmass; 
-	float fTtopmass2;
+        TH2D* detector;
 
-        static const int MaxNJetLargeR = 20;
-        int              fTNJetsLargeRFilled;
-        float            fTJlargeRPt        [MaxNJetLargeR];
-        float            fTJlargeREta       [MaxNJetLargeR];
-        float            fTJlargeRPhi       [MaxNJetLargeR];
-        float            fTJlargeRM         [MaxNJetLargeR];
-        float            fTJlargeRMungroomed[MaxNJetLargeR];
-        float            fTJlargeRCharge    [MaxNJetLargeR];
-        int              fTJlargeRBtag      [MaxNJetLargeR];
-        int              fTJlargeWplusMatch [MaxNJetLargeR];
-        int              fTJlargeWminusMatch[MaxNJetLargeR];
-        int              fTJlargeZpMatch    [MaxNJetLargeR];
-        int              fTJlargeHpMatch    [MaxNJetLargeR];
-	
-	int fTmode;
+        int MaxN;
 
-        fastjet::JetDefinition     *m_jet_def;
-        fastjet::JetDefinition     *m_jet_def_largeR_ALTAS;
+        int fTNFilled;
 
-
-
-    public:
-        myexampleAnalysis ();
-        ~myexampleAnalysis ();
+        float fTLeadingEta;
+        float fTLeadingPhi;
+        float fTLeadingPt;
+        float fTLeadingM;
         
-        void Begin();
-        void AnalyzeEvent(int iEvt, Pythia8::Pythia *pythia8);
-        void End();
-        void DeclareBranches();
-        void ResetBranches();
-        void Debug(int debug){
-            fDebug = debug;
-        }
-        void SetOutName(string outname){
-            fOutName = outname;
-        }
-        
+	float fTLeadingEta_nopix;
+        float fTLeadingPhi_nopix;
+        float fTLeadingPt_nopix;
+        float fTLeadingM_nopix;
+
+	float fTpull1;
+	float fTpull2;
+	float fTpull1_nopix;
+        float fTpull2_nopix;
+
+        float fTSubLeadingEta;
+        float fTSubLeadingPhi;
+	
+	float fTPCEta;
+	float fTPCPhi;
+
+        //float fTRotationAngle;
+
+        float fTTau1;
+        float fTTau2;
+        float fTTau3;
+
+        float fTTau21;
+        float fTTau32;
+
+	float fTTau1_nopix;
+        float fTTau2_nopix;
+        float fTTau3_nopix;
+
+	float fTTau21_nopix;
+	float fTTau32_nopix;
+
+        float fTdeltaR;
+
+        // float fTTau21old;
+        // float fTTau32old;
+
+        float *fTIntensity;
+	float *fTIntensity_pT;
+        // float *fTRotatedIntensity;
+        // float *fTLocalDensity;
+        // float *fTGlobalDensity;
+
+        // float fTPt [MaxN];
+        // double fTEta [MaxN];
+        // double fTPhi [MaxN];
+
+        // float fTIntensity[MaxN];
+        // float fTRotatedIntensity[MaxN];
+        // int  fTPixx[MaxN];
+        // int  fTPixy[MaxN]; 
+
+
+ 
+       
+    
 };
 
 #endif

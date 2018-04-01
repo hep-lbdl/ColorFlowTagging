@@ -1,5 +1,5 @@
-#ifndef MyTOOLS_H
-#define MyTOOLS_H 
+#ifndef FCNCTOOLS_H
+#define FCNCTOOLS_H 
 
 #include <vector>
 #include <math.h>
@@ -13,26 +13,32 @@
 #include "myFastJetBase.h"
 
 using namespace std;
-using fastjet::PseudoJet;
 
-class MyTools {
+class myTools {
     private:
         int m_test;
 
 
 
     public:
-        MyTools();
+        myTools();
         
         // methods
-        double JetCharge(fastjet::PseudoJet jet,double kappa);
 	double JetPull(fastjet::PseudoJet jet, fastjet::PseudoJet jet2);
+	double width(fastjet::PseudoJet jet);
+	int ntrack(fastjet::PseudoJet jet,double pT);
+        double JetCharge(fastjet::PseudoJet jet,double kappa);
+	double JetTrackMass(fastjet::PseudoJet jet,int which);
 	bool IsBHadron(int pdgId);
 	bool IsCHadron(int pdgId);
 	bool Btag(fastjet::PseudoJet jet,vector<fastjet::PseudoJet> bhadrons,vector<fastjet::PseudoJet> chadrons,double jetrad,double b, double c, double uds);
 	bool BosonMatch(fastjet::PseudoJet jet, vector<fastjet::PseudoJet> Bosons, double jetrad, int BosonID);
 	bool IsIsolated(Pythia8::Particle* particle, Pythia8::Pythia* pythia8, float rel_iso, float conesize);
-	int Match(fastjet::PseudoJet jet,vector<fastjet::PseudoJet> jets);
+	fastjet::PseudoJet Add(fastjet::PseudoJet jet);
+	fastjet::PseudoJet Drop(fastjet::PseudoJet jet);
+	fastjet::PseudoJet Angles(fastjet::PseudoJet jet);
+	fastjet::PseudoJet Scale(fastjet::PseudoJet jet);
+
 };
 
 #endif
