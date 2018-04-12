@@ -15,7 +15,7 @@
 #include "TClonesArray.h"
 #include "TParticle.h"
 
-#include "MyTools.h"
+#include "myTools.h"
 #include "myFastJetBase.h"
 #include "Pythia8/Pythia.h"
 
@@ -54,7 +54,7 @@ class MyAnalysis
 
         TFile *tF;
         TTree *tT;
-        MyTools *tool;
+        myTools *tool;
 
         // Tree Vars ---------------------------------------
         int fTEventNumber;
