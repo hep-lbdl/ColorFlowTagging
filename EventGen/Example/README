@@ -2,7 +2,8 @@ to run:
 
 source setup.sh
 make
-./myexample.exe --NEvents 10
+nohup ./myexample.exe --NEvents 30000000 --OutFile octet#.root --InFile eventsOctet &
+nohup ./myexample.exe --NEvents 30000000 --OutFile singlet#.root --InFile eventsSinglet &
 
 to make changes to the physics process, see
 

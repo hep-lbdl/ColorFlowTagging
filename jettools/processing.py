@@ -7,7 +7,7 @@ Simple utilities for processing the junk that comes out of the ntuple event gene
 
 import numpy.linalg as la
 import numpy as np
-from .jettools import rotate_jet, flip_jet, plot_mean_jet
+from jettools import rotate_jet, flip_jet, plot_mean_jet
 from ROOT import*
 
 def sum_image(image):
@@ -119,7 +119,7 @@ def buffer_to_jet(entry, tag = 0, side = 'r', max_entry = None, pix = 25):
     else:
         e, p = (entry['SubLeadingEta'], entry['SubLeadingPhi'])
     
-    angle = np.arctan(p / e) + 2.0 * np.arctan(1.0)
+    angle = np.arctan2(p, e) + 2.0 * np.arctan(1.0)
 
     if (-np.sin(angle) * e + np.cos(angle) * p) > 0:
         angle += -4.0 * np.arctan(1.0)
@@ -146,7 +146,7 @@ def buffer_to_jet(entry, tag = 0, side = 'r', max_entry = None, pix = 25):
     exit(1)
     '''
 
-    image = flip_jet(rotate_jet(np.array(entry['Intensity']), -4*np.arctan(1.0), normalizer=4000.0, dim=pix), side)
+    image = flip_jet(rotate_jet(np.array(entry['Intensity']), -angle, normalizer=4000.0, dim=pix), side) # change between (-angle <-> -4*np.arctan(1.0)) if testing
     e_norm = np.linalg.norm(image)
     #e_norm = 1./4000.0
     return ((image / e_norm).astype('float32'), np.float32(tag), 

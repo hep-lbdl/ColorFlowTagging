@@ -18,7 +18,8 @@ import logging
 
 import numpy as np
 
-from jettools import plot_mean_jet, buffer_to_jet, is_signal
+from jettools import plot_mean_jet
+from processing import buffer_to_jet, is_signal
 import array
 
 
@@ -175,7 +176,7 @@ if __name__ == '__main__':
                                 jet_nb, n_entries, fname
                             )
                         )
-                    if (np.abs(jet['LeadingEta']) < 2) & (jet['LeadingPt'] > float(args.ptmin)) & (jet['LeadingPt'] < float(args.ptmax)) & (jet['LeadingM'] < float(95)) & (jet['LeadingM'] > float(65)):
+                    if (np.abs(jet['LeadingEta']) < 2) & (jet['LeadingPt'] > float(300)) & (jet['LeadingPt'] < float(600)) & (jet['LeadingM'] < float(150)) & (jet['LeadingM'] > float(100)):
 
                         buf = buffer_to_jet(jet, tag, max_entry=100000, pix=pix_per_side)
                         if args.dump:
@@ -215,7 +216,7 @@ if __name__ == '__main__':
             logger.info('Skipping file {}'.format(fname))
         except AttributeError:
             logger.info('Skipping file {} for compatibility reasons'.format(fname))
-    if args.dump:
+    if args.dump and tree != None:
         tree.write()
         ROOTfile.close()
     
