@@ -11,12 +11,15 @@ from scipy import ndimage
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 
-def rotate_jet(jet, angle, in_radians = True, normalizer = None, dim=25):
+def rotate_jet(jet, angle, dim, in_radians = True, normalizer = None):
     """
     Take an *flat* unrotated in the form of an array from MI.exe, and an angle, 
     and rotates the jet to that angle using a passively rotated cubic spline 
     interpolation
     """
+    
+    dim = int(dim)
+
     im = jet.reshape((dim, dim))
     if normalizer is not None:
         np.clip(im, -1, normalizer, out=im)

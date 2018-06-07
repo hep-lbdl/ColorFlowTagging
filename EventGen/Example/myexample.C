@@ -61,6 +61,7 @@ int main(int argc, char* argv[]){
     desc.add_options() //100000
       ("help", "produce help message")
       ("NEvents", po::value<int>(&nEvents)->default_value(10000) ,    "Number of Events ")
+      ("NPixels", po::value<int>(&pixels)->default_value(25) ,    "Number of Pixels ")
       ("Debug",   po::value<int>(&fDebug) ->default_value(0) ,     "Debug flag")
       ("OutFile", po::value<string>(&outName)->default_value("test.root"), "output file name")
       ("InFile", po::value<string>(&inName)->default_value("test_input.root"), "input file name")

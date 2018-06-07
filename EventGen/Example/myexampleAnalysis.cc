@@ -47,6 +47,7 @@ double euclidean_distance(const point &x, const point &y)
 // Constructor 
 myexampleAnalysis::myexampleAnalysis(int imagesize)
 {
+    int d = imagesize/25;
     imagesize *= imagesize;
     MaxN = imagesize;
     fTIntensity = new float[imagesize];
@@ -59,12 +60,12 @@ myexampleAnalysis::myexampleAnalysis(int imagesize)
     if(fDebug) cout << "myexampleAnalysis::myexampleAnalysis Start " << endl;
     ftest = 0;
     fDebug = false;
-    fOutName = "test.root";
+    fOutName = "octet_test.root";
     tool = new myTools();
 
     //model the detector as a 2D histogram   
     //                         xbins       y bins
-    detector = new TH2D("", "", 125, -6.25, 6.25, 225, -11.25, 11.25);
+    detector = new TH2D("", "", d*125, -6.25, 6.25, d*225, -11.25, 11.25);
     for(int i = 1; i <= 125; i++)
     {
         for (int j = 1; j <= 225; j++)

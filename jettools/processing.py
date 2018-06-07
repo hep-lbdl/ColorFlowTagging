@@ -19,31 +19,30 @@ def sum_image(image):
         pass
     return out
 
-def reset_image(image):
-    arange = 1.25;
-    pixels      = 25;
-    hold = TH2F("", "", pixels, -arange, arange, pixels, -arange, arange);
-    counter = 0;
-    eta0 = hold.GetYaxis().FindBin(0)
-    phi0 = hold.GetXaxis().FindBin(1)
-    phi1 = hold.GetXaxis().FindBin(-1)
-    for i2 in range(1,hold.GetNbinsX()+1):
-        for j2 in range(1,hold.GetNbinsY()+1):
-            image[counter]=0
-            if (j2==eta0 and i2==phi0):
-                image[counter]=1
-                pass
-            if (j2==eta0 and i2==phi1):
-                image[counter]=1
-                pass
-            counter+=1
-            pass
-        pass
-    return image
+#def reset_image(image):
+#    arange = 1.25;
+#    pixels      = 25;
+#    hold = TH2F("", "", pixels, -arange, arange, pixels, -arange, arange);
+#    counter = 0;
+#    eta0 = hold.GetYaxis().FindBin(0)
+#    phi0 = hold.GetXaxis().FindBin(1)
+#    phi1 = hold.GetXaxis().FindBin(-1)
+#    for i2 in range(1,hold.GetNbinsX()+1):
+#        for j2 in range(1,hold.GetNbinsY()+1):
+#            image[counter]=0
+#            if (j2==eta0 and i2==phi0):
+#                image[counter]=1
+#                pass
+#            if (j2==eta0 and i2==phi1):
+#                image[counter]=1
+#                pass
+#            counter+=1
+#            pass
+#        pass
+#    return image
 
-def ben_rotate(image,angle):
+def ben_rotate(image,angle,pixels):
     arange = 1.25;
-    pixels      = 25;
     hold = TH2F("", "", pixels, -arange, arange, pixels, -arange, arange);
     out_image=[]
     vecs=[]
@@ -64,9 +63,8 @@ def ben_rotate(image,angle):
         pass
     return out_image
 
-def image_mass(image):
+def image_mass(image,pixels):
     arange = 1.25;
-    pixels      = 25;
     hold = TH2F("", "", pixels, -arange, arange, pixels, -arange, arange);
     counter = 0;
     ImageMass = TLorentzVector(0.,0.,0.,0.); 
@@ -89,7 +87,7 @@ def angle_from_vec(v1, v2):
     return np.arctan2(sinang, cosang)
 
 
-def buffer_to_jet(entry, tag = 0, side = 'r', max_entry = None, pix = 25):
+def buffer_to_jet(entry, pix, tag = 0, side = 'r', max_entry = None):
     """
     Takes an *single* entry from an structured ndarray, i.e., X[i], 
     and a tag = {0, 1} indicating if its a signal entry or not. 
@@ -130,23 +128,23 @@ def buffer_to_jet(entry, tag = 0, side = 'r', max_entry = None, pix = 25):
         angle = 4*np.arctan(1.)*kk/1000
         #image_map = reset_image(np.array(entry['Intensity']))
         image_map = np.array(entry['Intensity'])
-        image = flip_jet(rotate_jet(image_map, 0., normalizer=4000.0, dim=pix), side)
-        before = image_mass(image)
+        image = flip_jet(rotate_jet(image_map, 0., pix, normalizer=4000.0), side)
+        before = image_mass(image, pix)
         #print sum_image(image)
-        image = flip_jet(rotate_jet(image_map, -angle, normalizer=4000.0, dim=pix), side)
+        image = flip_jet(rotate_jet(image_map, -angle, pix, normalizer=4000.0), side)
         #print sum_image(image)
-        after = image_mass(image)
-        image = flip_jet(rotate_jet(image_map, 0., normalizer=4000.0, dim=pix), side)
-        image = ben_rotate(image,angle)
+        after = image_mass(image,pix)
+        image = flip_jet(rotate_jet(image_map, 0., pix, normalizer=4000.0), side)
+        image = ben_rotate(image,angle,pix)
         #print sum_image(image)
-        after2 = image_mass(image)
+        after2 = image_mass(image,pix)
         print "angle, before, after, after(Ben), diff, diff",angle,before,after,after2,after-before,after-after2
         pass
 
     exit(1)
     '''
 
-    image = flip_jet(rotate_jet(np.array(entry['Intensity']), -angle, normalizer=4000.0, dim=pix), side) # change between (-angle <-> -4*np.arctan(1.0)) if testing
+    image = flip_jet(rotate_jet(np.array(entry['Intensity']), -4*np.arctan(1.0), pix, normalizer=4000.0), side) # change between (-angle <-> -4*np.arctan(1.0)) if testing
     e_norm = np.linalg.norm(image)
     #e_norm = 1./4000.0
     return ((image / e_norm).astype('float32'), np.float32(tag), 

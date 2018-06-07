@@ -57,6 +57,7 @@ if __name__ == '__main__':
                          will be part of plotting filenames.')
     parser.add_argument('--ptmin', default=250.0, help = 'minimum pt to consider')
     parser.add_argument('--ptmax', default=300.0, help = 'maximum pt to consider')
+    parser.add_argument('--pixelSize', default=25, type=int, help = 'size of one side of the image, in pixels')
 
     parser.add_argument('--chunk', default=10, type=int, help = 'number of files to chunk together')
 
@@ -95,7 +96,7 @@ if __name__ == '__main__':
         # -- START BUFFER
 
         # -- raveled image
-        image = FloatArrayCol(25 ** 2)
+        image = FloatArrayCol(args.pixelSize ** 2)
 
         # -- 1 if signal, 0 otherwise
         signal = FloatCol()
@@ -167,6 +168,7 @@ if __name__ == '__main__':
                     raise ValueError('all files must have same sized images.')
                 
                 pix_per_side = int(np.sqrt(pix))
+		logger.info('Pixel Size: {}'.format(pix_per_side))
 
                 tag = is_signal(fname, signal_match)
                 logger.info('Logging as {}'.format(tag))
@@ -178,7 +180,7 @@ if __name__ == '__main__':
                         )
                     if (np.abs(jet['LeadingEta']) < 2) & (jet['LeadingPt'] > float(300)) & (jet['LeadingPt'] < float(600)) & (jet['LeadingM'] < float(150)) & (jet['LeadingM'] > float(100)):
 
-                        buf = buffer_to_jet(jet, tag, max_entry=100000, pix=pix_per_side)
+                        buf = buffer_to_jet(jet, args.pixelSize, tag, max_entry=100000)
                         if args.dump:
                             tree.image = buf[0].ravel()#.astype('float32')
                             tree.signal = buf[1]
