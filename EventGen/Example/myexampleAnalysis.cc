@@ -66,9 +66,9 @@ myexampleAnalysis::myexampleAnalysis(int imagesize)
     //model the detector as a 2D histogram   
     //                         xbins       y bins
     detector = new TH2D("", "", d*125, -6.25, 6.25, d*225, -11.25, 11.25);
-    for(int i = 1; i <= 125; i++)
+    for(int i = 1; i <= d*125; i++)
     {
-        for (int j = 1; j <= 225; j++)
+        for (int j = 1; j <= d*225; j++)
         {
             detector->SetBinContent(i,j,0);
         }
@@ -363,7 +363,6 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     //Step 2: Fill in the unrotated image
     //-------------------------------------------------------------------------   
     range = 1.25;
-    pixels = 25;
     TH2D* orig_im = new TH2D("", "", pixels, -range, range, pixels, -range, range);
     /*
     for (int i=1; i<=orig_im->GetNbinsX(); i++){

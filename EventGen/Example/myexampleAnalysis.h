@@ -27,7 +27,7 @@ using namespace fastjet;
 class myexampleAnalysis
 {
     public:
-        myexampleAnalysis(int imagesize = 25);
+        myexampleAnalysis(int imagesize);
         ~myexampleAnalysis();
         
         void Begin();
