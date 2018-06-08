@@ -47,6 +47,7 @@ double euclidean_distance(const point &x, const point &y)
 // Constructor 
 myexampleAnalysis::myexampleAnalysis(int imagesize)
 {
+    int radius = imagesize;
     imagesize *= imagesize;
     MaxN = imagesize;
     fTIntensity = new float[imagesize];
@@ -64,10 +65,10 @@ myexampleAnalysis::myexampleAnalysis(int imagesize)
 
     //model the detector as a 2D histogram   
     //                         xbins       y bins
-    detector = new TH2D("", "", imagesize*5, -6.25, 6.25, imagesize*9, -11.25, 11.25);
-    for(int i = 1; i <= imagesize*5; i++)
+    detector = new TH2D("", "", radius*5, -6.25, 6.25, radius*9, -11.25, 11.25);
+    for(int i = 1; i <= radius*5; i++)
     {
-        for (int j = 1; j <= imagesize*9; j++)
+        for (int j = 1; j <= radius*9; j++)
         {
             detector->SetBinContent(i,j,0);
         }
