@@ -32,7 +32,7 @@ class myexampleAnalysis
         
         void Begin();
         void AnalyzeEvent(int iEvt, Pythia8::Pythia *pythia8,  
-            Pythia8::Pythia *pythia_MB, int NPV, int pixels, float range);
+            Pythia8::Pythia *pythia_MB, int NPV, int pixels, float range, bool isCharged);
 
         void End();
         void DeclareBranches();

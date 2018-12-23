@@ -55,8 +55,9 @@ int main(int argc, char* argv[]){
 
     int pixels = 25;
     double image_range = 1.25;
-    int pileup =0; //number of extra collisions that happen on top of the main one.  For now, set this to 0. 
-    
+    int pileup =0; //number of extra collisions that happen on top of the main one.  For now, set this to 0.
+    bool isCharged = false;
+
     po::options_description desc("Allowed options");
     desc.add_options() //100000
       ("help", "produce help message")
@@ -65,6 +66,7 @@ int main(int argc, char* argv[]){
       ("Debug",   po::value<int>(&fDebug) ->default_value(0) ,     "Debug flag")
       ("OutFile", po::value<string>(&outName)->default_value("test.root"), "output file name")
       ("InFile", po::value<string>(&inName)->default_value("test_input.root"), "input file name")
+      ("IsCharged", po::value<bool>(&isCharged)->default_value(false), "Take only charged jets")
       ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -111,12 +113,12 @@ int main(int argc, char* argv[]){
    cout << "running on " << nEvents << " events " << endl;
    for (Int_t iev = 0; iev < nEvents; iev++) {
      if (iev%100==0) cout << iev << " " << nEvents << endl;
-     analysis1->AnalyzeEvent(iev, pythia8b, pythia_MB, pileup, pixels, image_range);
+     analysis1->AnalyzeEvent(iev, pythia8b, pythia_MB, pileup, pixels, image_range, isCharged);
    }
    analysis1->End();
-   pythia8b->stat(); 
+   pythia8b->stat();
    delete analysis1;
-   
+
    // that was it
    delete pythia8b;
    return 0;

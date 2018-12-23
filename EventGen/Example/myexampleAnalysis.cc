@@ -113,7 +113,7 @@ void myexampleAnalysis::End()
 
 // Analyze
 void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8::Pythia* pythia_MB, int NPV,
-    int pixels, float range)
+    int pixels, float range, bool onlyCharged)
 {
 
     if(fDebug) cout << "myexampleAnalysis::AnalyzeEvent Begin " << endl;
@@ -148,9 +148,12 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
                              pythia8->event[ip].e() );
 
         // particles for jets --------------
-        if (!pythia8->event[ip].isFinal())       continue;
+        if (!pythia8->event[ip].isFinal()) continue;
 
-        //Skip neutrinos, PDGid = 12, 14, 16 
+	// only charged if wanted
+	if (onlyCharged && !pythia8->event[ip].isCharged()) continue;
+
+        //Skip neutrinos, PDGid = 12, 14, 16
         if (fabs(pythia8->event[ip].id())  ==12) continue;
         if (fabs(pythia8->event[ip].id())  ==14) continue;
         if (fabs(pythia8->event[ip].id())  ==16) continue;
