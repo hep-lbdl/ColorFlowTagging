@@ -112,7 +112,7 @@ void MyAnalysis::End()
 
 // Analyze
 void MyAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8::Pythia* pythia_MB, int NPV,
-    int pixels, float range)
+    int pixels, float range, bool onlyCharged)
 {
 
     if(fDebug) cout << "MyAnalysis::AnalyzeEvent Begin " << endl;
@@ -142,9 +142,12 @@ void MyAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8::Pythi
       if (pythia8->event[ip].id()==-14) z1.SetPxPyPzE(pythia8->event[ip].px(),pythia8->event[ip].py(),pythia8->event[ip].pz(),pythia8->event[ip].e());
 
         fastjet::PseudoJet p(pythia8->event[ip].px(),
-                             pythia8->event[ip].py(), 
+                             pythia8->event[ip].py(),
                              pythia8->event[ip].pz(),
                              pythia8->event[ip].e() );
+
+	// only charged particles
+	if (onlyCharged && (!pythia8->event[ip].isCharged())) continue;
 
         // particles for jets --------------
         if (!pythia8->event[ip].isFinal())       continue;
@@ -155,17 +158,18 @@ void MyAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8::Pythi
         if (fabs(pythia8->event[ip].id())  ==16) continue;
 
 
+
         // find the particles rapidity and phi, then get the detector bins
         int ybin = detector->GetXaxis()->FindBin(p.rapidity());
         int phibin = detector->GetYaxis()->FindBin(p.phi());
 
         // do bin += value in the associated detector bin
-        detector->SetBinContent(ybin, phibin, 
+        detector->SetBinContent(ybin, phibin,
                                 detector->GetBinContent(ybin, phibin) + p.e());
 	fastjet::PseudoJet p_nopix(p.px(),p.py(),p.pz(),p.e());
 	particlesForJets_nopixel.push_back(p_nopix);
-    }  
-    // end particle loop -----------------------------------------------  
+    }
+    // end particle loop -----------------------------------------------
 
     //Now, we extract the energy from the calorimeter for processing by fastjet
     for (int i = 1; i <= detector->GetNbinsX(); i++)
@@ -180,7 +184,7 @@ void MyAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8::Pythi
                 fastjet::PseudoJet p(0., 0., 0., 0.);
 
                 //We measure E (not pT)!  And treat 'clusters' as massless.
-                p.reset_PtYPhiM(E/cosh(eta), eta, phi, 0.); 
+                p.reset_PtYPhiM(E/cosh(eta), eta, phi, 0.);
                 particlesForJets.push_back(p);
             }
         }
