@@ -11,55 +11,58 @@ This also dumps everything (optionally) into a ROOT file.
 
 '''
 
-
 from argparse import ArgumentParser
-import sys
 import logging
+import sys
+sys.path.append("../jettools")
 
 import numpy as np
+import h5py
 
 from jettools import plot_mean_jet
 from processing import buffer_to_jet, is_signal
-import array
-
-
-
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 def perfectsquare(n):
     '''
     I hope this is self explanatory...
     '''
-    return n % n**0.5 == 0
+    return n % n ** 0.5 == 0
+
 
 if __name__ == '__main__':
+    tree = None
     parser = ArgumentParser()
-    parser.add_argument('--verbose', 
-                        action='store_true', 
+    parser.add_argument('--verbose',
+                        action='store_true',
                         help='Verbose output')
 
-    parser.add_argument('--signal', 
+    parser.add_argument('--signal',
                         default='wprime',
-                        help = 'String to search for in\
+                        help='String to search for in\
                          filenames to indicate a signal file')
 
-    parser.add_argument('--dump', 
+    parser.add_argument('--dump',
                         default=None,
-                        help = 'ROOT file *prefix* to dump all this into (writes to TTree `images`). the .root extension will be added.')
-
-    parser.add_argument('--save', 
-                        default=None, 
-                        help = 'Filename *prefix* to write out the data. (a .npy ext will be added to the end)')
-    parser.add_argument('--plot',  
-                        help = 'File prefix that\
+                        help='ROOT file *prefix* to dump all this into (writes to TTree `images`). the .root '
+                             'extension will be added.')
+    parser.add_argument('--hdf5',
+			default=None,
+			help='Filename *prefix* to write out the data. (a .h5 ext will be added to the end)')
+    parser.add_argument('--save',
+                        default=None,
+                        help='Filename *prefix* to write out the data. (a .npy ext will be added to the end)')
+    parser.add_argument('--plot',
+                        help='File prefix that\
                          will be part of plotting filenames.')
-    parser.add_argument('--ptmin', default=250.0, help = 'minimum pt to consider')
-    parser.add_argument('--ptmax', default=300.0, help = 'maximum pt to consider')
-    parser.add_argument('--pixelSize', default=25, type=int, help = 'size of one side of the image, in pixels')
+    parser.add_argument('--ptmin', default=250.0, help='minimum pt to consider')
+    parser.add_argument('--ptmax', default=300.0, help='maximum pt to consider')
+    parser.add_argument('--pixelSize', default=25, type=int, help='size of one side of the image, in pixels')
 
-    parser.add_argument('--chunk', default=10, type=int, help = 'number of files to chunk together')
+    parser.add_argument('--chunk', default=10, type=int, help='number of files to chunk together')
 
     parser.add_argument('files', nargs='*', help='Files to pass in')
 
@@ -70,23 +73,25 @@ if __name__ == '__main__':
         logger.error('Must pass at least one file in -- terminating with error.')
         exit(1)
 
-    if (args.save is None) and (args.dump is None):
+    if (args.save is None) and (args.dump is None) and (args.hdf5 is None):
         logger.error('Must write to NPY and/or ROOT file.')
         exit(1)
 
     signal_match = args.signal
     files = args.files
     savefile = args.save
+    hdf5 = args.hdf5
     plt_prefix = ''
     if args.plot:
         plt_prefix = args.plot
 
-    try: # -- see if this rootpy business works
+    try:  # -- see if this rootpy business works
         from rootpy.io import root_open
         from rootpy.tree import Tree, TreeModel, FloatCol, FloatArrayCol
     except ImportError:
         raise ImportError('rootpy (www.rootpy.org) not installed\
          -- install, then try again!')
+
 
     # -- create buffer for the tree
     class JetImage(TreeModel):
@@ -117,31 +122,28 @@ if __name__ == '__main__':
         pull1 = FloatCol()
         pull2 = FloatCol()
         # -- END BUFFER
-         
-            
+
 
     pix_per_side = -999
     entries = []
-
-
+    img_entries = []
 
     CHUNK_MAX = int(args.chunk)
-    print 'chunk max is {}'.format(CHUNK_MAX)
+    print('chunk max is {}'.format(CHUNK_MAX))
     N_CHUNKED = 0
     CURRENT_CHUNK = 0
 
     import glob
+
     # -- hack
-    #files = args.files # -- 
+    # files = args.files # --
     # files = glob.glob(args.files[0] + '/*.root')
     files = glob.glob(args.files[0] + '/*.root')
-    
-    print 'length: {}'.format(len(files)),args.files[0] + '/*.root'
 
+    print('length: {}'.format(len(files)), args.files[0] + '/*.root')
 
     ROOTfile = None
-    # ROOTfile = None
-        
+
     for i, fname in enumerate(files):
         logger.info('ON: CHUNK #{}'.format(CURRENT_CHUNK))
         try:
@@ -166,23 +168,25 @@ if __name__ == '__main__':
 
                 if (pix_per_side > 1) and (int(np.sqrt(pix)) != pix_per_side):
                     raise ValueError('all files must have same sized images.')
-                
+
                 pix_per_side = int(np.sqrt(pix))
-		logger.info('Pixel Size: {}'.format(pix_per_side))
+                logger.info('Pixel Size: {}'.format(pix_per_side))
 
                 tag = is_signal(fname, signal_match)
                 logger.info('Logging as {}'.format(tag))
                 for jet_nb, jet in enumerate(df):
                     if jet_nb % 1000 == 0:
                         logger.info('processing jet {} of {} for file {}'.format(
-                                jet_nb, n_entries, fname
-                            )
+                            jet_nb, n_entries, fname
                         )
-                    if (np.abs(jet['LeadingEta']) < 2) & (jet['LeadingPt'] > float(300)) & (jet['LeadingPt'] < float(600)) & (jet['LeadingM'] < float(150)) & (jet['LeadingM'] > float(100)):
+                        )
+                    if (np.abs(jet['LeadingEta']) < 2) & (jet['LeadingPt'] > float(300)) & (
+                            jet['LeadingPt'] < float(600)) & (jet['LeadingM'] < float(150)) & (
+                            jet['LeadingM'] > float(100)):
 
                         buf = buffer_to_jet(jet, args.pixelSize, tag, max_entry=100000)
                         if args.dump:
-                            tree.image = buf[0].ravel()#.astype('float32')
+                            tree.image = buf[0].ravel()  # .astype('float32')
                             tree.signal = buf[1]
                             tree.jet_pt = buf[2]
                             tree.jet_eta = buf[3]
@@ -198,6 +202,9 @@ if __name__ == '__main__':
                             tree.pull2 = buf[13]
                         if savefile is not None:
                             entries.append(buf)
+                        if hdf5 is not None:
+                            img_entries.append(buf[0])
+                            entries.append(buf[1:])
                         if args.dump:
                             tree.fill()
 
@@ -218,28 +225,41 @@ if __name__ == '__main__':
             logger.info('Skipping file {}'.format(fname))
         except AttributeError:
             logger.info('Skipping file {} for compatibility reasons'.format(fname))
-    if args.dump and tree != None:
+    if args.dump and tree is not None:
         tree.write()
         ROOTfile.close()
-    
+
+    if hdf5 is not None:
+
+        with h5py.File(hdf5 + '.h5', mode='w') as hf:
+            entries = np.array(entries)
+            t = hf.create_group('meta_variables')
+            _buf_names = ['signal', 'jet_pt', 'jet_eta', 'jet_phi', 'jet_mass', 'jet_delta_R', 'tau_32', 'tau_21', 
+                          'tau_1', 'tau_2', 'tau_3', 'pull1', 'pull2']
+            for idx, meta in enumerate(_buf_names):
+                t.create_dataset(meta, data=entries[:, idx])
+            del entries
+            hf.create_dataset('images', data=img_entries)
+            del img_entries
 
     if savefile is not None:
         # -- datatypes for outputted file.
-        _bufdtype = [('image', 'float32', (pix_per_side, pix_per_side)), 
+        _bufdtype = [('image', 'float32', (pix_per_side, pix_per_side)),
                      ('signal', 'float32'),
                      ('jet_pt', 'float32'),
                      ('jet_eta', 'float32'),
-                     ('jet_phi', 'float32'), 
+                     ('jet_phi', 'float32'),
                      ('jet_mass', 'float32'),
                      ('jet_delta_R', 'float32'),
-                     ('tau_32', 'float32'), 
+                     ('tau_32', 'float32'),
                      ('tau_21', 'float32'),
                      ('tau_1', 'float32'),
                      ('tau_2', 'float32'),
                      ('tau_3', 'float32'),
                      ('pull1', 'float32'),
-                     ('pull2', 'float32'),]
-
+                     ('pull2', 'float32'), ]
+        # print(entries)
+        # print(_bufdtype)
         df = np.array(entries, dtype=_bufdtype)
         logger.info('saving to file: {}'.format(savefile))
         np.save(savefile, df)
