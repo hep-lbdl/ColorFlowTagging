@@ -31,8 +31,9 @@ class myexampleAnalysis
         ~myexampleAnalysis();
         
         void Begin();
-        void AnalyzeEvent(int iEvt, Pythia8::Pythia *pythia8,  
-            Pythia8::Pythia *pythia_MB, int NPV, int pixels, float range, bool isCharged);
+        void AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8::Pythia* pythia_MB, int NPV, int pixels, float range, float ptjMin, float ptjMax, float etaMax, float massMin, float massMax, bool onlyCharged);
+
+
 
         void End();
         void DeclareBranches();
