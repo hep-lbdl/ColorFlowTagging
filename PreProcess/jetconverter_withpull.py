@@ -58,14 +58,23 @@ if __name__ == '__main__':
     parser.add_argument('--plot',
                         help='File prefix that\
                          will be part of plotting filenames.')
-    parser.add_argument('--ptmin', default=250.0, help='minimum pt to consider')
-    parser.add_argument('--ptmax', default=300.0, help='maximum pt to consider')
     parser.add_argument('--pixelSize', default=25, type=int, help='size of one side of the image, in pixels')
 
     parser.add_argument('--chunk', default=10, type=int, help='number of files to chunk together')
 
+    parser.add_argument('--pTmin', default=300.0, type=float, help='Lower bound of cut on pT of leading jet')
+
+    parser.add_argument('--pTmax', default=600.0, type=float, help='Upper bound of cut on pT of leading jet')
+
+    parser.add_argument('--etaMax', default=2.0, type=float, help='Upper bound of cut on eta of leading jet')
+
+    parser.add_argument('--massMin', default=100.0, type=float, help='Lower bound of cut on mass of leading jet')
+
+    parser.add_argument('--massMax', default=150.0, type=float, help='Upper bound of cut on mass of leading jet')
+
     parser.add_argument('files', nargs='*', help='Files to pass in')
 
+    
     args = parser.parse_args()
 
     # -- check for logic errors
@@ -74,7 +83,7 @@ if __name__ == '__main__':
         exit(1)
 
     if (args.save is None) and (args.dump is None) and (args.hdf5 is None):
-        logger.error('Must write to NPY and/or ROOT file.')
+        logger.error('Must write to NPY, HDF5 and/or ROOT file.')
         exit(1)
 
     signal_match = args.signal
@@ -82,6 +91,14 @@ if __name__ == '__main__':
     savefile = args.save
     hdf5 = args.hdf5
     plt_prefix = ''
+
+    ptj_min = args.pTmin
+    ptj_max = args.pTmax
+    eta_max = args.etaMax
+    mass_min = args.massMin
+    mass_max = args.massMax
+
+
     if args.plot:
         plt_prefix = args.plot
 
@@ -180,9 +197,9 @@ if __name__ == '__main__':
                             jet_nb, n_entries, fname
                         )
                         )
-                    if (np.abs(jet['LeadingEta']) < 2) & (jet['LeadingPt'] > float(300)) & (
-                            jet['LeadingPt'] < float(600)) & (jet['LeadingM'] < float(150)) & (
-                            jet['LeadingM'] > float(100)):
+                    if (np.abs(jet['LeadingEta']) < eta_max) & (jet['LeadingPt'] > ptj_min) & (
+                           jet['LeadingPt'] < ptj_max) & (jet['LeadingM'] < mass_max) & (
+                           jet['LeadingM'] > mass_min):
 
                         buf = buffer_to_jet(jet, args.pixelSize, tag, max_entry=100000)
                         if args.dump:
