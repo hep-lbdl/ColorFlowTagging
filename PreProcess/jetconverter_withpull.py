@@ -72,6 +72,8 @@ if __name__ == '__main__':
 
     parser.add_argument('--massMax', default=150.0, type=float, help='Upper bound of cut on mass of leading jet')
 
+    parser.add_argument('--applyCuts', default=True, type=str, help='Whether to apply all the cuts or not')
+
     parser.add_argument('files', nargs='*', help='Files to pass in')
 
     
@@ -97,8 +99,11 @@ if __name__ == '__main__':
     eta_max = args.etaMax
     mass_min = args.massMin
     mass_max = args.massMax
-
-
+    if args.applyCuts in ['1', 'True', 'true', 'y', 'Y', 'T', 't']:
+        apply_cuts = True
+    else:
+        apply_cuts = False
+    
     if args.plot:
         plt_prefix = args.plot
 
@@ -191,15 +196,17 @@ if __name__ == '__main__':
 
                 tag = is_signal(fname, signal_match)
                 logger.info('Logging as {}'.format(tag))
+                print(not apply_cuts)
                 for jet_nb, jet in enumerate(df):
                     if jet_nb % 1000 == 0:
                         logger.info('processing jet {} of {} for file {}'.format(
                             jet_nb, n_entries, fname
                         )
                         )
-                    if (np.abs(jet['LeadingEta']) < eta_max) & (jet['LeadingPt'] > ptj_min) & (
+                    if ((np.abs(jet['LeadingEta']) < eta_max) & (jet['LeadingPt'] > ptj_min) & (
                            jet['LeadingPt'] < ptj_max) & (jet['LeadingM'] < mass_max) & (
-                           jet['LeadingM'] > mass_min):
+                           jet['LeadingM'] > mass_min)) or not apply_cuts:
+			if not (np.abs(jet['LeadingEta']) < eta_max) & (jet['LeadingPt'] > ptj_min) & (jet['LeadingPt'] < ptj_max) & (jet['LeadingM'] < mass_max) & (jet['LeadingM'] > mass_min):
 
                         buf = buffer_to_jet(jet, args.pixelSize, tag, max_entry=100000)
                         if args.dump:
