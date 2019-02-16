@@ -31,7 +31,8 @@ class myexampleAnalysis
         ~myexampleAnalysis();
         
         void Begin();
-        void AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8::Pythia* pythia_MB, int NPV, int pixels, float range, float ptjMin, float ptjMax, float etaMax, float massMin, float massMax, bool onlyCharged);
+        void AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8::Pythia* pythia_MB, 
+                int NPV, int pixels, float range, float ptjMin, float ptjMax, float etaMax, float massMin, float massMax);
 
 
 
@@ -46,15 +47,20 @@ class myexampleAnalysis
 
         void SetOutName(const string &outname)
         {
-            fOutName = outname;
+            fOutName_standard = outname + "_standard.root";
+            fOutName_charged = outname + "_charged.root";
         }
     private:
         int  ftest;
         int  fDebug;
-        string fOutName;
+        string fOutName_standard;
+        string fOutName_charged;
 
-        TFile *tF;
-        TTree *tT;
+        TFile *tF_standard;
+        TTree *tT_standard;
+
+        TFile *tF_charged;
+        TTree *tT_charged;
         myTools *tool;
 
         // Tree Vars ---------------------------------------
@@ -72,73 +78,96 @@ class myexampleAnalysis
         vector<float> nsub32s;
         vector<int>   nsubs;
 
-        TH2D* detector;
+        TH2D* detector_standard;
+        TH2D* detector_charged;
 
         int MaxN;
 
-        int fTNFilled;
+        // Standard jet parameters
+        int fTNFilled_standard;
 
-        float fTLeadingEta;
-        float fTLeadingPhi;
-        float fTLeadingPt;
-        float fTLeadingM;
+        float fTLeadingEta_standard;
+        float fTLeadingPhi_standard;
+        float fTLeadingPt_standard;
+        float fTLeadingM_standard;
         
-	float fTLeadingEta_nopix;
-        float fTLeadingPhi_nopix;
-        float fTLeadingPt_nopix;
-        float fTLeadingM_nopix;
+	float fTLeadingEta_nopix_standard;
+        float fTLeadingPhi_nopix_standard;
+        float fTLeadingPt_nopix_standard;
+        float fTLeadingM_nopix_standard;
 
-	float fTpull1;
-	float fTpull2;
-	float fTpull1_nopix;
-        float fTpull2_nopix;
+	float fTpull1_standard;
+	float fTpull2_standard;
+	float fTpull1_nopix_standard;
+        float fTpull2_nopix_standard;
 
-        float fTSubLeadingEta;
-        float fTSubLeadingPhi;
+        float fTSubLeadingEta_standard;
+        float fTSubLeadingPhi_standard;
 	
-	float fTPCEta;
-	float fTPCPhi;
+	float fTPCEta_standard;
+	float fTPCPhi_standard;
 
-        //float fTRotationAngle;
+        float fTTau1_standard;
+        float fTTau2_standard;
+        float fTTau3_standard;
 
-        float fTTau1;
-        float fTTau2;
-        float fTTau3;
+        float fTTau21_standard;
+        float fTTau32_standard;
 
-        float fTTau21;
-        float fTTau32;
+	float fTTau1_nopix_standard;
+        float fTTau2_nopix_standard;
+        float fTTau3_nopix_standard;
 
-	float fTTau1_nopix;
-        float fTTau2_nopix;
-        float fTTau3_nopix;
+	float fTTau21_nopix_standard;
+	float fTTau32_nopix_standard;
 
-	float fTTau21_nopix;
-	float fTTau32_nopix;
+        float fTdeltaR_standard;
 
-        float fTdeltaR;
+        float *fTIntensity_standard;
+	float *fTIntensity_pT_standard;
 
-        // float fTTau21old;
-        // float fTTau32old;
+        // Charged jet parameters
+        int fTNFilled_charged;
 
-        float *fTIntensity;
-	float *fTIntensity_pT;
-        // float *fTRotatedIntensity;
-        // float *fTLocalDensity;
-        // float *fTGlobalDensity;
+        float fTLeadingEta_charged;
+        float fTLeadingPhi_charged;
+        float fTLeadingPt_charged;
+        float fTLeadingM_charged;
+        
+	float fTLeadingEta_nopix_charged;
+        float fTLeadingPhi_nopix_charged;
+        float fTLeadingPt_nopix_charged;
+        float fTLeadingM_nopix_charged;
 
-        // float fTPt [MaxN];
-        // double fTEta [MaxN];
-        // double fTPhi [MaxN];
+	float fTpull1_charged;
+	float fTpull2_charged;
+	float fTpull1_nopix_charged;
+        float fTpull2_nopix_charged;
 
-        // float fTIntensity[MaxN];
-        // float fTRotatedIntensity[MaxN];
-        // int  fTPixx[MaxN];
-        // int  fTPixy[MaxN]; 
+        float fTSubLeadingEta_charged;
+        float fTSubLeadingPhi_charged;
+	
+	float fTPCEta_charged;
+	float fTPCPhi_charged;
 
+        float fTTau1_charged;
+        float fTTau2_charged;
+        float fTTau3_charged;
 
- 
-       
-    
+        float fTTau21_charged;
+        float fTTau32_charged;
+
+	float fTTau1_nopix_charged;
+        float fTTau2_nopix_charged;
+        float fTTau3_nopix_charged;
+
+	float fTTau21_nopix_charged;
+	float fTTau32_nopix_charged;
+
+        float fTdeltaR_charged;
+
+        float *fTIntensity_charged;
+	float *fTIntensity_pT_charged;
 };
 
 #endif

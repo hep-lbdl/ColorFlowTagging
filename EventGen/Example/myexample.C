@@ -47,16 +47,15 @@ int main(int argc, char* argv[]){
     }
     cout << endl;
 
-    // agruments 
+    // arguments 
     int nEvents = 0;
     int fDebug  = 0;
-    string outName = "test.root";
-    string inName = "test_input.root";
+    string outName = "test";
+    string inName = "test_input";
 
     int pixels = 25;
     double image_range = 1.25;
     int pileup =0; //number of extra collisions that happen on top of the main one.  For now, set this to 0.
-    bool isCharged = false;
     float pTmin, pTmax, etamax, massmin, massmax;
 
     po::options_description desc("Allowed options");
@@ -65,9 +64,8 @@ int main(int argc, char* argv[]){
       ("NEvents", po::value<int>(&nEvents)->default_value(10000) ,    "Number of Events ")
       ("NPixels", po::value<int>(&pixels)->default_value(25) ,    "Number of Pixels ")
       ("Debug",   po::value<int>(&fDebug) ->default_value(0) ,     "Debug flag")
-      ("OutFile", po::value<string>(&outName)->default_value("test.root"), "output file name")
-      ("InFile", po::value<string>(&inName)->default_value("test_input.root"), "input file name")
-      ("IsCharged", po::value<bool>(&isCharged)->default_value(false), "Take only charged jets")
+      ("OutFile", po::value<string>(&outName)->default_value("test"), "output file name (.root will be added automatically)")
+      ("InFile", po::value<string>(&inName)->default_value("test_input"), "input file name (.root will be added automatically)")
       ("pTMin", po::value<float>(&pTmin)->default_value(300), "Upper bound of cut on pT of leading jet")
       ("pTMax", po::value<float>(&pTmax)->default_value(600), "Lower bound of cut on pT of leading jet")
       ("etaMax", po::value<float>(&etamax)->default_value(2), "Upper bound of cut on eta of leading jet")
@@ -119,7 +117,7 @@ int main(int argc, char* argv[]){
    cout << "running on " << nEvents << " events " << endl;
    for (Int_t iev = 0; iev < nEvents; iev++) {
      if (iev%100==0) cout << iev << " " << nEvents << endl;
-     analysis1->AnalyzeEvent(iev, pythia8b, pythia_MB, pileup, pixels, image_range, pTmin, pTmax, etamax, massmin, massmax, isCharged);
+     analysis1->AnalyzeEvent(iev, pythia8b, pythia_MB, pileup, pixels, image_range, pTmin, pTmax, etamax, massmin, massmax);
    }
    analysis1->End();
    pythia8b->stat();

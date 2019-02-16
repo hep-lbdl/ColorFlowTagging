@@ -3,6 +3,7 @@
 #include <string>
 #include <sstream>
 #include <set>
+#include <tuple>
 
 #include "TFile.h"
 #include "TTree.h"
@@ -41,30 +42,53 @@ double euclidean_distance(const point &x, const point &y)
     return sqrt(d1 * d1 + d2 * d2);
 }
 
+std::tuple<double, double> calculate_pull(vector<fastjet::PseudoJet> subjets, myTools* tool) {
+    if (subjets.size() > 1){
+      double p1 = tool->JetPull(subjets[0],subjets[1]);
+      double p2 = tool->JetPull(subjets[1],subjets[0]);
+      return std::make_tuple(p1, p2);
+    }
+    else {
+	throw 20;
+        return std::make_tuple(NULL, NULL);
+    }
+}
+
 // Constructor
 myexampleAnalysis::myexampleAnalysis(int imagesize)
 {
     int radius = imagesize;
     imagesize *= imagesize;
     MaxN = imagesize;
-    fTIntensity = new float[imagesize];
-    fTIntensity_pT = new float[imagesize];
+    fTIntensity_standard = new float[imagesize];
+    fTIntensity_pT_standard = new float[imagesize];
 
+    fTIntensity_charged = new float[imagesize];
+    fTIntensity_pT_charged = new float[imagesize];
 
     if(fDebug) cout << "myexampleAnalysis::myexampleAnalysis Start " << endl;
     ftest = 0;
     fDebug = false;
-    fOutName = "octet_test.root";
+    this->SetOutName("octet_test");
     tool = new myTools();
 
     //model the detector as a 2D histogram
     //                         xbins       y bins
-    detector = new TH2D("", "", radius*5, -6.25, 6.25, radius*9, -11.25, 11.25);
+    detector_standard = new TH2D("", "", radius*5, -6.25, 6.25, radius*9, -11.25, 11.25);
     for(int i = 1; i <= radius*5; i++)
     {
         for (int j = 1; j <= radius*9; j++)
         {
-            detector->SetBinContent(i,j,0);
+            detector_standard->SetBinContent(i,j,0);
+        }
+    }
+
+    detector_charged = new TH2D("", "", radius*5, -6.25, 6.25, radius*9, -11.25, 11.25);
+    for(int i = 1; i <= radius*5; i++)
+    {
+        for (int j = 1; j <= radius*9; j++)
+        {
+            detector_charged->SetBinContent(i,j,0);
         }
     }
 
@@ -76,16 +100,22 @@ myexampleAnalysis::~myexampleAnalysis()
 {
     delete tool;
 
-    delete[] fTIntensity;
-    delete[] fTIntensity_pT;
+    delete[] fTIntensity_standard;
+    delete[] fTIntensity_pT_standard;
+
+    delete[] fTIntensity_charged;
+    delete[] fTIntensity_pT_charged;
 }
 
 // Begin method
 void myexampleAnalysis::Begin()
 {
    // Declare TTree
-   tF = new TFile(fOutName.c_str(), "RECREATE");
-   tT = new TTree("EventTree", "Event Tree for myexample");
+   tF_standard = new TFile(fOutName_standard.c_str(), "RECREATE");
+   tT_standard = new TTree("EventTree", "Event Tree for myexample");
+   
+   tF_charged = new TFile(fOutName_charged.c_str(), "RECREATE");
+   tT_charged = new TTree("EventTree", "Event Tree for myexample");
    
    // for stuff you want to do by hand
    DeclareBranches();
@@ -97,14 +127,17 @@ void myexampleAnalysis::Begin()
 // End
 void myexampleAnalysis::End()
 {
-    tT->Write();
-    tF->Close();
+    tT_standard->Write();
+    tF_standard->Close();
+    
+    tT_charged->Write();
+    tF_charged->Close();
     return;
 }
 
 // Analyze
 void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8::Pythia* pythia_MB, int NPV,
-    int pixels, float range, float ptjMin, float ptjMax, float etaMax, float massMin, float massMax, bool onlyCharged)
+    int pixels, float range, float ptjMin, float ptjMax, float etaMax, float massMin, float massMax)
 {
 
     if(fDebug) cout << "myexampleAnalysis::AnalyzeEvent Begin " << endl;
@@ -113,28 +146,34 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     if (!pythia8->next()) return;
     if(fDebug) cout << "myexampleAnalysis::AnalyzeEvent Event Number " << ievt << endl;
 
-    // reset branches 
+    // reset branches
     ResetBranches();
     
     // new event-----------------------
     fTEventNumber = ievt;
-    std::vector <fastjet::PseudoJet> particlesForJets;
-    std::vector <fastjet::PseudoJet> particlesForJets_nopixel;
+    std::vector <fastjet::PseudoJet> particlesForJets_standard;
+    std::vector <fastjet::PseudoJet> particlesForJets_nopixel_standard;
 
-    detector->Reset();
+
+    std::vector <fastjet::PseudoJet> particlesForJets_charged;
+    std::vector <fastjet::PseudoJet> particlesForJets_nopixel_charged;
+
+    detector_standard->Reset();
+    detector_charged->Reset();
+    
     TLorentzVector z1 = TLorentzVector();
     TLorentzVector z2 =TLorentzVector();
 
     // Particle loop ----------------------------------------------------------
     for (int ip=0; ip<pythia8->event.size(); ++ip){
 
-      if (pythia8->event[ip].id()==14) z1.SetPxPyPzE(pythia8->event[ip].px(),pythia8->event[ip].py(),pythia8->event[ip].pz(),pythia8->event[ip].e());
-      if (pythia8->event[ip].id()==-14) z1.SetPxPyPzE(pythia8->event[ip].px(),pythia8->event[ip].py(),pythia8->event[ip].pz(),pythia8->event[ip].e());
+        if (pythia8->event[ip].id()==14) z1.SetPxPyPzE(pythia8->event[ip].px(),pythia8->event[ip].py(),pythia8->event[ip].pz(),pythia8->event[ip].e());
+        if (pythia8->event[ip].id()==-14) z1.SetPxPyPzE(pythia8->event[ip].px(),pythia8->event[ip].py(),pythia8->event[ip].pz(),pythia8->event[ip].e());
 
         fastjet::PseudoJet p(pythia8->event[ip].px(),
                              pythia8->event[ip].py(), 
                              pythia8->event[ip].pz(),
-                             pythia8->event[ip].e() );
+                             pythia8->event[ip].e());
 
         // particles for jets --------------
         if (!pythia8->event[ip].isFinal()) continue;
@@ -146,296 +185,427 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
 
 
         // find the particles rapidity and phi, then get the detector bins
-        int ybin = detector->GetXaxis()->FindBin(p.rapidity());
-        int phibin = detector->GetYaxis()->FindBin(p.phi());
+        int ybin = detector_standard->GetXaxis()->FindBin(p.rapidity());
+        int phibin = detector_standard->GetYaxis()->FindBin(p.phi());
 
         // do bin += value in the associated detector bin
-        detector->SetBinContent(ybin, phibin, 
-                                detector->GetBinContent(ybin, phibin) + p.e());
-	fastjet::PseudoJet p_nopix(p.px(),p.py(),p.pz(),p.e());
-	particlesForJets_nopixel.push_back(p_nopix);
+        detector_standard->SetBinContent(ybin, phibin, 
+            detector_standard->GetBinContent(ybin, phibin) + p.e());
+	
+        fastjet::PseudoJet p_nopix(p.px(),p.py(),p.pz(),p.e());
+	    particlesForJets_nopixel_standard.push_back(p_nopix);
+        
+        if (pythia8->event[ip].isCharged()) {
+            int ybin = detector_charged->GetXaxis()->FindBin(p.rapidity());
+            int phibin = detector_charged->GetYaxis()->FindBin(p.phi());
+
+            detector_charged->SetBinContent(ybin, phibin, 
+                detector_charged->GetBinContent(ybin, phibin) + p.e());
+            
+            particlesForJets_nopixel_charged.push_back(p_nopix);
+        }
+
+        
+        
     }  
     // end particle loop -----------------------------------------------  
 
-    // Calculate the nopixalated leading jet.
+    // Calculate the nopixalated leading standard jet (to go to the cutoff as fast as possible).
     fastjet::JetDefinition *m_jet_def = new fastjet::JetDefinition(
         fastjet::antikt_algorithm, 1.);
 
     fastjet::Filter trimmer(fastjet::JetDefinition(fastjet::kt_algorithm, 0.3),
         fastjet::SelectorPtFractionMin(0.05));
 
-    fastjet::ClusterSequence csLargeR_nopix(particlesForJets_nopixel, *m_jet_def);
+    fastjet::ClusterSequence csLargeR_nopix_standard(particlesForJets_nopixel_standard, *m_jet_def);
 
-    vector<fastjet::PseudoJet> considered_jets_nopix = fastjet::sorted_by_pt(
-csLargeR_nopix.inclusive_jets(10.0));
+    vector<fastjet::PseudoJet> considered_jets_nopix_standard = fastjet::sorted_by_pt(
+        csLargeR_nopix_standard.inclusive_jets(10.0));
     
-    fastjet::PseudoJet leading_jet_nopix = trimmer(considered_jets_nopix[0]);
 
-    fTLeadingEta_nopix = leading_jet_nopix.eta();
-    fTLeadingPt_nopix = leading_jet_nopix.perp();
-    fTLeadingM_nopix = leading_jet_nopix.m();
+    fastjet::PseudoJet leading_jet_nopix_standard = trimmer(considered_jets_nopix_standard[0]);
 
-    if (!(fTLeadingPt_nopix < ptjMax && fTLeadingPt_nopix > ptjMin && fTLeadingEta_nopix < etaMax && fTLeadingM_nopix > massMin && fTLeadingM_nopix < massMax)) {
+    fTLeadingEta_nopix_standard = leading_jet_nopix_standard.eta();
+    fTLeadingPt_nopix_standard = leading_jet_nopix_standard.perp();
+    fTLeadingM_nopix_standard = leading_jet_nopix_standard.m();
+
+    if (!(fTLeadingPt_nopix_standard < ptjMax && fTLeadingPt_nopix_standard > ptjMin && 
+            fTLeadingEta_nopix_standard < etaMax && fTLeadingM_nopix_standard > massMin && 
+            fTLeadingM_nopix_standard < massMax)) {
         // One of the conditions did not pass.
         // TODO: ADD GARBAGE COLLECTION/FREE MEMORY UP
         return;
     }
-    else if (onlyCharged) {
-        // Reset non-pixelated jets
-        particlesForJets_nopixel.clear();
-        
-        // Reset the detector.
-        for(int i = 1; i <= pixels*5; i++)
-        {
-            for (int j = 1; j <= pixels*9; j++)
-            {
-                detector->SetBinContent(i,j,0);
-            }
-        }
 
-        // Particle loop (Charged only)--------------------------------------------
-        for (int ip=0; ip<pythia8->event.size(); ++ip){
+    // Repeat the above for charged, without cutoff.
+    fTLeadingPhi_nopix_standard = leading_jet_nopix_standard.phi();
 
-            if (pythia8->event[ip].id()==14) z1.SetPxPyPzE(pythia8->event[ip].px(),pythia8->event[ip].py(),pythia8->event[ip].pz(),pythia8->event[ip].e());
-            if (pythia8->event[ip].id()==-14) z1.SetPxPyPzE(pythia8->event[ip].px(),pythia8->event[ip].py(),pythia8->event[ip].pz(),pythia8->event[ip].e());
+    fastjet::ClusterSequence csLargeR_nopix_charged(particlesForJets_nopixel_charged, *m_jet_def);
+    vector<fastjet::PseudoJet> considered_jets_nopix_charged = fastjet::sorted_by_pt(
+        csLargeR_nopix_charged.inclusive_jets(10.0));
 
-            fastjet::PseudoJet p(pythia8->event[ip].px(),
-                             pythia8->event[ip].py(), 
-                             pythia8->event[ip].pz(),
-                             pythia8->event[ip].e() );
-
-            // particles for jets --------------
-            if (!pythia8->event[ip].isFinal()) continue;
-
-            // Skip neutral particles
-            if (!pythia8->event[ip].isCharged()) continue;
-
-            //Skip neutrinos, PDGid = 12, 14, 16
-            if (fabs(pythia8->event[ip].id()) == 12) continue;
-            if (fabs(pythia8->event[ip].id()) == 14) continue;
-            if (fabs(pythia8->event[ip].id()) == 16) continue;
+    fastjet::PseudoJet leading_jet_nopix_charged = trimmer(considered_jets_nopix_charged[0]);
 
 
-            // find the particles rapidity and phi, then get the detector bins
-            int ybin = detector->GetXaxis()->FindBin(p.rapidity());
-            int phibin = detector->GetYaxis()->FindBin(p.phi());
-
-            // do bin += value in the associated detector bin
-            detector->SetBinContent(ybin, phibin, 
-                                detector->GetBinContent(ybin, phibin) + p.e());
-	    fastjet::PseudoJet p_nopix(p.px(),p.py(),p.pz(),p.e());
-	    particlesForJets_nopixel.push_back(p_nopix);
-        } // end particle loop (Charged only)-------------------------------------------
-
-
-        // Recalculate the nopixalated leading jet.
-        fastjet::JetDefinition *m_jet_def = new fastjet::JetDefinition(
-            fastjet::antikt_algorithm, 1.);
-
-        fastjet::Filter trimmer(fastjet::JetDefinition(fastjet::kt_algorithm, 0.3),
-            fastjet::SelectorPtFractionMin(0.05));
-
-        fastjet::ClusterSequence csLargeR_nopix(particlesForJets_nopixel, *m_jet_def);
-
-        vector<fastjet::PseudoJet> considered_jets_nopix = fastjet::sorted_by_pt(
-            csLargeR_nopix.inclusive_jets(10.0));
-
-        fastjet::PseudoJet leading_jet_nopix = trimmer(considered_jets_nopix[0]);
-
-        fTLeadingEta_nopix = leading_jet_nopix.eta();
-        fTLeadingPt_nopix = leading_jet_nopix.perp();
-        fTLeadingM_nopix = leading_jet_nopix.m();
-    }
-
-    fTLeadingPhi_nopix = leading_jet_nopix.phi();
+    fTLeadingEta_nopix_charged = leading_jet_nopix_charged.eta();
+    fTLeadingPt_nopix_charged = leading_jet_nopix_charged.perp();
+    fTLeadingM_nopix_charged = leading_jet_nopix_charged.m();
+    fTLeadingPhi_nopix_charged = leading_jet_nopix_charged.phi();
 
     //Now, we extract the energy from the calorimeter for processing by fastjet
-    for (int i = 1; i <= detector->GetNbinsX(); i++)
+    for (int i = 1; i <= detector_standard->GetNbinsX(); i++)
     {
-        for (int j = 1; j <= detector->GetNbinsY(); j++)
+        for (int j = 1; j <= detector_standard->GetNbinsY(); j++)
         {
-            if (detector->GetBinContent(i, j) > 0)
+            if (detector_standard->GetBinContent(i, j) > 0)
             {
-                double phi = detector->GetYaxis()->GetBinCenter(j);
-                double eta = detector->GetXaxis()->GetBinCenter(i);
-                double E = detector->GetBinContent(i, j);
+                double phi = detector_standard->GetYaxis()->GetBinCenter(j);
+                double eta = detector_standard->GetXaxis()->GetBinCenter(i);
+                double E = detector_standard->GetBinContent(i, j);
                 fastjet::PseudoJet p(0., 0., 0., 0.);
 
                 //We measure E (not pT)!  And treat 'clusters' as massless.
                 p.reset_PtYPhiM(E/cosh(eta), eta, phi, 0.); 
-                particlesForJets.push_back(p);
+                particlesForJets_standard.push_back(p);
             }
         }
     }
 
-    // fastjet::JetDefinition *m_jet_def = new fastjet::JetDefinition(
-    //     fastjet::antikt_algorithm, 1.);
+    for (int i = 1; i <= detector_charged->GetNbinsX(); i++)
+    {
+        for (int j = 1; j <= detector_charged->GetNbinsY(); j++)
+        {
+            if (detector_charged->GetBinContent(i, j) > 0)
+            {
+                double phi = detector_charged->GetYaxis()->GetBinCenter(j);
+                double eta = detector_charged->GetXaxis()->GetBinCenter(i);
+                double E = detector_charged->GetBinContent(i, j);
+                fastjet::PseudoJet p(0., 0., 0., 0.);
 
-    // fastjet::Filter trimmer(fastjet::JetDefinition(fastjet::kt_algorithm, 0.3),
-    //     fastjet::SelectorPtFractionMin(0.05));
-
-    fastjet::ClusterSequence csLargeR(particlesForJets, *m_jet_def);
-    // fastjet::ClusterSequence csLargeR_nopix(particlesForJets_nopixel, *m_jet_def);
-
-    vector<fastjet::PseudoJet> considered_jets = fastjet::sorted_by_pt(
-								       csLargeR.inclusive_jets(10.0));
-    // vector<fastjet::PseudoJet> considered_jets_nopix = fastjet::sorted_by_pt(
-    //     csLargeR_nopix.inclusive_jets(10.0));
-    fastjet::PseudoJet leading_jet = trimmer(considered_jets[0]);
-    // fastjet::PseudoJet leading_jet_nopix = trimmer(considered_jets_nopix[0]);
-    
-    fTLeadingEta = leading_jet.eta();
-    fTLeadingM = leading_jet.m();
-    fTLeadingPhi = leading_jet.phi();
-    fTLeadingPt = leading_jet.perp();
-    fTLeadingEta_nopix = leading_jet_nopix.eta();
-    fTLeadingPhi_nopix = leading_jet_nopix.phi();
-    fTLeadingPt_nopix = leading_jet_nopix.perp();
-    fTLeadingM_nopix = leading_jet_nopix.m();
-
-    vector<fastjet::PseudoJet> subjets_nopix = leading_jet_nopix.pieces();
-    
-    fTpull1 = -1;
-    fTpull2 = -1;
-
-    fTpull1_nopix = -1;
-    fTpull2_nopix = -1;
-
-    if (subjets_nopix.size() > 1){
-      fTpull1_nopix = tool->JetPull(subjets_nopix[0],subjets_nopix[1]);
-      fTpull2_nopix = tool->JetPull(subjets_nopix[1],subjets_nopix[0]);
+                //We measure E (not pT)!  And treat 'clusters' as massless.
+                p.reset_PtYPhiM(E/cosh(eta), eta, phi, 0.); 
+                particlesForJets_charged.push_back(p);
+            }
+        }
     }
+
+    fastjet::ClusterSequence csLargeR_standard(particlesForJets_standard, *m_jet_def);
+    
+    fastjet::ClusterSequence csLargeR_charged(particlesForJets_charged, *m_jet_def);
+
+    vector<fastjet::PseudoJet> considered_jets_standard = fastjet::sorted_by_pt(
+								       csLargeR_standard.inclusive_jets(10.0));
+    
+    vector<fastjet::PseudoJet> considered_jets_charged = fastjet::sorted_by_pt(
+								       csLargeR_charged.inclusive_jets(10.0));
+
+    fastjet::PseudoJet leading_jet_standard = trimmer(considered_jets_standard[0]);
+    fastjet::PseudoJet leading_jet_charged = trimmer(considered_jets_charged[0]);
+
+
+    fTLeadingEta_standard = leading_jet_standard.eta();
+    fTLeadingM_standard = leading_jet_standard.m();
+    fTLeadingPhi_standard = leading_jet_standard.phi();
+    fTLeadingPt_standard = leading_jet_standard.perp();
+    fTLeadingEta_nopix_standard = leading_jet_nopix_standard.eta();
+    fTLeadingPhi_nopix_standard = leading_jet_nopix_standard.phi();
+    fTLeadingPt_nopix_standard = leading_jet_nopix_standard.perp();
+    fTLeadingM_nopix_standard = leading_jet_nopix_standard.m();
+
+    fTLeadingEta_charged = leading_jet_charged.eta();
+    fTLeadingM_charged = leading_jet_charged.m();
+    fTLeadingPhi_charged = leading_jet_charged.phi();
+    fTLeadingPt_charged = leading_jet_charged.perp();
+    fTLeadingEta_nopix_charged = leading_jet_nopix_charged.eta();
+    fTLeadingPhi_nopix_charged = leading_jet_nopix_charged.phi();
+    fTLeadingPt_nopix_charged = leading_jet_nopix_charged.perp();
+    fTLeadingM_nopix_charged = leading_jet_nopix_charged.m();
+
+    vector<fastjet::PseudoJet> subjets_nopix_standard = leading_jet_nopix_standard.pieces();
+    vector<fastjet::PseudoJet> subjets_nopix_charged = leading_jet_nopix_charged.pieces();
+
+    fTpull1_standard = -1;
+    fTpull2_standard = -1;
+
+    fTpull1_charged = -1;
+    fTpull2_charged = -1;
+
+    fTpull1_nopix_standard = -1;
+    fTpull2_nopix_standard = -1;
+    
+    fTpull1_nopix_charged = -1;
+    fTpull2_nopix_charged = -1;
+
+    std::tuple<double, double> no_pix_pulls_standard = calculate_pull(subjets_nopix_standard, tool);
+    fTpull1_nopix_standard = get<0>(no_pix_pulls_standard);
+    fTpull2_nopix_standard = get<1>(no_pix_pulls_standard);
    
-    fTdeltaR = 0.;
-    if (leading_jet.pieces().size() > 1){
-      vector<fastjet::PseudoJet> subjets = leading_jet.pieces();
-      TLorentzVector l(subjets[0].px(),subjets[0].py(),subjets[0].pz(),subjets[0].E());
-      TLorentzVector sl(subjets[1].px(),subjets[1].py(),subjets[1].pz(),subjets[1].E());
-      fTdeltaR = l.DeltaR(sl); 
-      fTSubLeadingEta = sl.Eta()-l.Eta();
-      fTSubLeadingPhi = subjets[1].delta_phi_to(subjets[0]);
+    std::tuple<double, double> no_pix_pulls_charged = calculate_pull(subjets_nopix_charged, tool);
+    fTpull1_nopix_charged = get<0>(no_pix_pulls_charged);
+    fTpull2_nopix_charged = get<1>(no_pix_pulls_charged);
+   
+    fTdeltaR_standard = 0.;
+    fTdeltaR_charged = 0.;
+    if (leading_jet_standard.pieces().size() > 1){
+      vector<fastjet::PseudoJet> subjets_standard = leading_jet_standard.pieces();
+      TLorentzVector l(subjets_standard[0].px(),subjets_standard[0].py(),subjets_standard[0].pz(),subjets_standard[0].E());
+      TLorentzVector sl(subjets_standard[1].px(),subjets_standard[1].py(),subjets_standard[1].pz(),subjets_standard[1].E());
+      fTdeltaR_standard = l.DeltaR(sl); 
+      fTSubLeadingEta_standard = sl.Eta()-l.Eta();
+      fTSubLeadingPhi_standard = subjets_standard[1].delta_phi_to(subjets_standard[0]);
 
       //Let's compute the jet pull.
-      fTpull1 = tool->JetPull(subjets[0],subjets[1]);
-      fTpull2 = tool->JetPull(subjets[1],subjets[0]);
+      fTpull1_standard = tool->JetPull(subjets_standard[0],subjets_standard[1]);
+      fTpull2_standard = tool->JetPull(subjets_standard[1],subjets_standard[0]);
     }
-    
-    vector<pair<double, double>  > consts_image;
-    vector<fastjet::PseudoJet> sorted_consts = sorted_by_pt(leading_jet.constituents());
 
-    for(int i = 0; i < sorted_consts.size(); i++)
+    if (leading_jet_charged.pieces().size() > 1){
+      vector<fastjet::PseudoJet> subjets_charged = leading_jet_charged.pieces();
+      TLorentzVector l(subjets_charged[0].px(),subjets_charged[0].py(),subjets_charged[0].pz(),subjets_charged[0].E());
+      TLorentzVector sl(subjets_charged[1].px(),subjets_charged[1].py(),subjets_charged[1].pz(),subjets_charged[1].E());
+      fTdeltaR_charged = l.DeltaR(sl); 
+      fTSubLeadingEta_charged = sl.Eta()-l.Eta();
+      fTSubLeadingPhi_charged = subjets_charged[1].delta_phi_to(subjets_charged[0]);
+
+      //Let's compute the jet pull.
+      fTpull1_charged = tool->JetPull(subjets_charged[0],subjets_charged[1]);
+      fTpull2_charged = tool->JetPull(subjets_charged[1],subjets_charged[0]);
+    }
+
+    vector<pair<double, double>  > consts_image_standard;
+    vector<fastjet::PseudoJet> sorted_consts_standard = sorted_by_pt(leading_jet_standard.constituents());
+
+    vector<pair<double, double>  > consts_image_charged;
+    vector<fastjet::PseudoJet> sorted_consts_charged = sorted_by_pt(leading_jet_charged.constituents());
+
+    for(int i = 0; i < sorted_consts_standard.size(); i++)
     {
         pair<double, double> const_hold;
-        const_hold.first = sorted_consts[i].eta();
-        const_hold.second = sorted_consts[i].phi();
-        consts_image.push_back(const_hold);
+        const_hold.first = sorted_consts_standard[i].eta();
+        const_hold.second = sorted_consts_standard[i].phi();
+        consts_image_standard.push_back(const_hold);
     }
 
-    vector<fastjet::PseudoJet> subjets = leading_jet.pieces();
+    for(int i = 0; i < sorted_consts_charged.size(); i++)
+    {
+        pair<double, double> const_hold;
+        const_hold.first = sorted_consts_charged[i].eta();
+        const_hold.second = sorted_consts_charged[i].phi();
+        consts_image_charged.push_back(const_hold);
+    }
+
+
+    vector<fastjet::PseudoJet> subjets_standard = leading_jet_standard.pieces();
+    vector<fastjet::PseudoJet> subjets_charged = leading_jet_charged.pieces();
 
     //Step 1: Center on the jet axis.
-    fastjet::PseudoJet shiftjet;
-    shiftjet.reset_momentum_PtYPhiM(1.,detector->GetXaxis()->GetBinCenter(detector->GetXaxis()->FindBin(subjets[0].eta())),detector->GetYaxis()->GetBinCenter(detector->GetYaxis()->FindBin(subjets[0].phi())),0.);
-    for (int i =0; i < sorted_consts.size(); i++)
+    fastjet::PseudoJet shiftjet_charged;
+    shiftjet_charged.reset_momentum_PtYPhiM(1.,detector_charged->GetXaxis()->GetBinCenter(detector_charged->GetXaxis()->FindBin(subjets_charged[0].eta())),detector_charged->GetYaxis()->GetBinCenter(detector_charged->GetYaxis()->FindBin(subjets_charged[0].phi())),0.);
+    for (int i =0; i < sorted_consts_charged.size(); i++)
     {
-      consts_image[i].first = consts_image[i].first-shiftjet.eta();
-      consts_image[i].second = sorted_consts[i].delta_phi_to(shiftjet);
+      consts_image_charged[i].first = consts_image_charged[i].first-shiftjet_charged.eta();
+      consts_image_charged[i].second = sorted_consts_charged[i].delta_phi_to(shiftjet_charged);
+    }
+
+    fastjet::PseudoJet shiftjet_standard;
+    shiftjet_standard.reset_momentum_PtYPhiM(1.,detector_standard->GetXaxis()->GetBinCenter(detector_standard->GetXaxis()->FindBin(subjets_standard[0].eta())),detector_standard->GetYaxis()->GetBinCenter(detector_standard->GetYaxis()->FindBin(subjets_standard[0].phi())),0.);
+    for (int i =0; i < sorted_consts_standard.size(); i++)
+    {
+      consts_image_standard[i].first = consts_image_standard[i].first-shiftjet_standard.eta();
+      consts_image_standard[i].second = sorted_consts_standard[i].delta_phi_to(shiftjet_standard);
     }
     
     //Quickly run PCA for the rotation.
-    double xbar = 0.;
-    double ybar = 0.;
-    double x2bar = 0.;
-    double y2bar = 0.;
-    double xybar = 0.;
-    double n = 0;
+    double xbar_standard = 0.;
+    double ybar_standard = 0.;
+    double x2bar_standard = 0.;
+    double y2bar_standard = 0.;
+    double xybar_standard = 0.;
+    double n_standard = 0;
 
-    for(int i = 0; i < leading_jet.constituents().size(); i++)
-      {
-        double x = consts_image[i].first;
-        double y = consts_image[i].second;
-	double E = sorted_consts[i].e();
-        n+=E;
-        xbar+=x*E;
-        ybar+=y*E;
-      }
+    double xbar_charged = 0.;
+    double ybar_charged = 0.;
+    double x2bar_charged = 0.;
+    double y2bar_charged = 0.;
+    double xybar_charged = 0.;
+    double n_charged = 0;
 
-    double mux = xbar / n;
-    double muy = ybar / n;
+    for(int i = 0; i < leading_jet_standard.constituents().size(); i++)
+    {
+        double x = consts_image_standard[i].first;
+        double y = consts_image_standard[i].second;
+	    double E = sorted_consts_standard[i].e();
+        n_standard+=E;
+        xbar_standard+=x*E;
+        ybar_standard+=y*E;
+    }
 
-    xbar = 0.;
-    ybar = 0.;
-    n = 0.;
+    for(int i = 0; i < leading_jet_charged.constituents().size(); i++)
+    {
+        double x = consts_image_charged[i].first;
+        double y = consts_image_charged[i].second;
+	    double E = sorted_consts_charged[i].e();
+        n_charged+=E;
+        xbar_charged+=x*E;
+        ybar_charged+=y*E;
+    }
 
-    for(int i = 0; i < leading_jet.constituents().size(); i++)
-      {
-        double x = consts_image[i].first - mux;
-        double y = consts_image[i].second - muy;
-        double E = sorted_consts[i].e();
-        n+=E;
-        xbar+=x*E;
-        ybar+=y*E;
-        x2bar+=x*x*E;
-        y2bar+=y*y*E;
-        xybar+=x*y*E;
-      }
+    double mux_standard = xbar_standard / n_standard;
+    double muy_standard = ybar_standard / n_standard;
 
-    double sigmax2 = x2bar / n - mux*mux;
-    double sigmay2 = y2bar / n - muy*muy;
-    double sigmaxy = xybar / n - mux*muy;
-    double lamb_min = 0.5* ( sigmax2 + sigmay2 - sqrt( (sigmax2-sigmay2)*(sigmax2-sigmay2) + 4*sigmaxy*sigmaxy) );
-    double lamb_max = 0.5* ( sigmax2 + sigmay2 + sqrt( (sigmax2-sigmay2)*(sigmax2-sigmay2) + 4*sigmaxy*sigmaxy) );
+    double mux_charged = xbar_charged / n_charged;
+    double muy_charged = ybar_charged / n_charged;
 
-    double dir_x = sigmax2+sigmaxy-lamb_min;
-    double dir_y = sigmay2+sigmaxy-lamb_min;
+
+    xbar_standard = 0.;
+    ybar_standard = 0.;
+    n_standard = 0.;
+
+    xbar_charged = 0.;
+    ybar_charged = 0.;
+    n_charged = 0.;
+
+    for(int i = 0; i < leading_jet_standard.constituents().size(); i++)
+    {
+        double x = consts_image_standard[i].first - mux_standard;
+        double y = consts_image_standard[i].second - muy_standard;
+        double E = sorted_consts_standard[i].e();
+        n_standard+=E;
+        xbar_standard+=x*E;
+        ybar_standard+=y*E;
+        x2bar_standard+=x*x*E;
+        y2bar_standard+=y*y*E;
+        xybar_standard+=x*y*E;
+    }
+
+    for(int i = 0; i < leading_jet_charged.constituents().size(); i++)
+    {
+        double x = consts_image_charged[i].first - mux_charged;
+        double y = consts_image_charged[i].second - muy_charged;
+        double E = sorted_consts_charged[i].e();
+        n_charged+=E;
+        xbar_charged+=x*E;
+        ybar_charged+=y*E;
+        x2bar_charged+=x*x*E;
+        y2bar_charged+=y*y*E;
+        xybar_charged+=x*y*E;
+    }
+
+    double sigmax2_standard = x2bar_standard / n_standard - mux_standard*mux_standard;
+    double sigmay2_standard = y2bar_standard / n_standard - muy_standard*muy_standard;
+    double sigmaxy_standard = xybar_standard / n_standard - mux_standard*muy_standard;
+    double lamb_min_standard = 0.5* ( sigmax2_standard + sigmay2_standard - sqrt( (sigmax2_standard-sigmay2_standard)*(sigmax2_standard-sigmay2_standard) + 4*sigmaxy_standard*sigmaxy_standard) );
+    double lamb_max_standard = 0.5* ( sigmax2_standard + sigmay2_standard + sqrt( (sigmax2_standard-sigmay2_standard)*(sigmax2_standard-sigmay2_standard) + 4*sigmaxy_standard*sigmaxy_standard) );
+
+    double sigmax2_charged = x2bar_charged / n_charged - mux_charged*mux_charged;
+    double sigmay2_charged = y2bar_charged / n_charged - muy_charged*muy_charged;
+    double sigmaxy_charged = xybar_charged / n_charged - mux_charged*muy_charged;
+    double lamb_min_charged = 0.5* ( sigmax2_charged + sigmay2_charged - sqrt( (sigmax2_charged-sigmay2_charged)*(sigmax2_charged-sigmay2_charged) + 4*sigmaxy_charged*sigmaxy_charged) );
+    double lamb_max_charged = 0.5* ( sigmax2_charged + sigmay2_charged + sqrt( (sigmax2_charged-sigmay2_charged)*(sigmax2_charged-sigmay2_charged) + 4*sigmaxy_charged*sigmaxy_charged) );
+
+
+    double dir_x_standard = sigmax2_standard+sigmaxy_standard-lamb_min_standard;
+    double dir_y_standard = sigmay2_standard+sigmaxy_standard-lamb_min_standard;
+
+    double dir_x_charged = sigmax2_charged+sigmaxy_charged-lamb_min_charged;
+    double dir_y_charged = sigmay2_charged+sigmaxy_charged-lamb_min_charged;
 
     //The first PC is only defined up to a sign.  Let's have it point toward the side of the jet with the most energy.
 
-    double Eup = 0.;
-    double Edn = 0.;
+    double Eup_standard = 0.;
+    double Edn_standard = 0.;
 
-    for(int i = 0; i < leading_jet.constituents().size(); i++)
-      {
-	double x = consts_image[i].first - mux;
-        double y = consts_image[i].second - muy;
-	double E = sorted_consts[i].e();
-	double dotprod = dir_x*x+dir_y*y;
-	if (dotprod > 0) Eup+=E;
-	else Edn+=E;
-      }
-    
-    if (Edn < Eup){
-      dir_x = -dir_x;
-      dir_y = -dir_y;
+    double Eup_charged = 0.;
+    double Edn_charged = 0.;
+
+    for(int i = 0; i < leading_jet_standard.constituents().size(); i++)
+    {
+	    double x = consts_image_standard[i].first - mux_standard;
+        double y = consts_image_standard[i].second - muy_standard;
+        double E = sorted_consts_standard[i].e();
+        double dotprod = dir_x_standard*x+dir_y_standard*y;
+        if (dotprod > 0) {
+            Eup_standard+=E;
+        } else {
+            Edn_standard+=E;
+        }
     }
 
-    fTPCEta = dir_x;
-    fTPCPhi = dir_y;
+    for(int i = 0; i < leading_jet_charged.constituents().size(); i++)
+    {
+	    double x = consts_image_charged[i].first - mux_charged;
+        double y = consts_image_charged[i].second - muy_charged;
+        double E = sorted_consts_charged[i].e();
+        double dotprod = dir_x_charged*x+dir_y_charged*y;
+        if (dotprod > 0) {
+            Eup_charged+=E;
+        } else {
+            Edn_charged+=E;
+        }
+    }
+    
+    if (Edn_standard < Eup_standard){
+        dir_x_standard = -dir_x_standard;
+        dir_y_standard = -dir_y_standard;
+    }
+
+    if (Edn_charged < Eup_charged){
+        dir_x_charged = -dir_x_charged;
+        dir_y_charged = -dir_y_charged;
+    }
+
+    fTPCEta_standard = dir_x_standard;
+    fTPCPhi_standard = dir_y_standard;
+
+    fTPCEta_charged = dir_x_charged;
+    fTPCPhi_charged = dir_y_charged;
 
     //Step 2: Fill in the unrotated image
     //-------------------------------------------------------------------------   
     range = 1.25;
-    TH2D* orig_im = new TH2D("", "", pixels, -range, range, pixels, -range, range);
-    
-    TLorentzVector image_mass = TLorentzVector();
-    for (int i = 0; i < sorted_consts.size(); i++)
+    TH2D* orig_im_standard = new TH2D("", "", pixels, -range, range, pixels, -range, range);
+    TH2D* orig_im_charged = new TH2D("", "", pixels, -range, range, pixels, -range, range);
+
+    // TLorentzVector image_mass_standard = TLorentzVector();
+    for (int i = 0; i < sorted_consts_standard.size(); i++)
     {
       TLorentzVector hold = TLorentzVector();
-      hold.SetPtEtaPhiM(sorted_consts[i].perp(),consts_image[i].first,consts_image[i].second,0.);
+      hold.SetPtEtaPhiM(sorted_consts_standard[i].perp(),consts_image_standard[i].first,consts_image_standard[i].second,0.);
       
-      orig_im->Fill(consts_image[i].first,consts_image[i].second,hold.E());
+      orig_im_standard->Fill(consts_image_standard[i].first,consts_image_standard[i].second,hold.E());
+    }
+     
+    // TLorentzVector image_mass_charged = TLorentzVector();
+    for (int i = 0; i < sorted_consts_charged.size(); i++)
+    {
+      TLorentzVector hold = TLorentzVector();
+      hold.SetPtEtaPhiM(sorted_consts_charged[i].perp(),consts_image_charged[i].first,consts_image_charged[i].second,0.);
+      
+      orig_im_charged->Fill(consts_image_charged[i].first,consts_image_charged[i].second,hold.E());
     }
 
     //Step 5: Dump the images in the tree!
     //-------------------------------------------------------------------------
     int counter=0;
-    for (int i=1; i<=orig_im->GetNbinsX(); i++)
+    for (int i=1; i<=orig_im_standard->GetNbinsX(); i++)
     {
-        for (int j=1; j<=orig_im->GetNbinsY(); j++)
+        for (int j=1; j<=orig_im_standard->GetNbinsY(); j++)
         {
-            fTIntensity_pT[counter] = orig_im->GetBinContent(i,j);
-	    double myeta = orig_im->GetXaxis()->GetBinCenter(i);
-	    fTIntensity[counter] = orig_im->GetBinContent(i,j)/cosh(myeta);
+            fTIntensity_pT_standard[counter] = orig_im_standard->GetBinContent(i,j);
+	        double myeta = orig_im_standard->GetXaxis()->GetBinCenter(i);
+	        fTIntensity_standard[counter] = orig_im_standard->GetBinContent(i,j)/cosh(myeta);
+
+            counter++;
+        }
+    }
+    counter=0;
+    for (int i=1; i<=orig_im_charged->GetNbinsX(); i++)
+    {
+        for (int j=1; j<=orig_im_charged->GetNbinsY(); j++)
+        {
+            fTIntensity_pT_charged[counter] = orig_im_charged->GetBinContent(i,j);
+	        double myeta = orig_im_charged->GetXaxis()->GetBinCenter(i);
+	        fTIntensity_charged[counter] = orig_im_charged->GetBinContent(i,j)/cosh(myeta);
 
             counter++;
         }
@@ -443,29 +613,56 @@ csLargeR_nopix.inclusive_jets(10.0));
 
     // Step 6: Fill in nsubjettiness (new)
     //----------------------------------------------------------------------------
-    OnePass_WTA_KT_Axes axis_spec;
-    NormalizedMeasure parameters(1.0, 1.0);
+    OnePass_WTA_KT_Axes axis_spec_standard;
+    NormalizedMeasure parameters_standard(1.0, 1.0);
 
     // NormalizedMeasure parameters(1.0, 1.0);
-    Nsubjettiness subjettiness_1(1, axis_spec, parameters);
-    Nsubjettiness subjettiness_2(2, axis_spec, parameters);
-    Nsubjettiness subjettiness_3(3, axis_spec, parameters);
+    Nsubjettiness subjettiness_1_standard(1, axis_spec_standard, parameters_standard);
+    Nsubjettiness subjettiness_2_standard(2, axis_spec_standard, parameters_standard);
+    Nsubjettiness subjettiness_3_standard(3, axis_spec_standard, parameters_standard);
 
-    fTTau1 = (float) subjettiness_1.result(leading_jet);
-    fTTau2 = (float) subjettiness_2.result(leading_jet);
-    fTTau3 = (float) subjettiness_3.result(leading_jet);
+    OnePass_WTA_KT_Axes axis_spec_charged;
+    NormalizedMeasure parameters_charged(1.0, 1.0);
 
-    fTTau32 = (abs(fTTau2) < 1e-4 ? -10 : fTTau3 / fTTau2);
-    fTTau21 = (abs(fTTau1) < 1e-4 ? -10 : fTTau2 / fTTau1);
+    // NormalizedMeasure parameters(1.0, 1.0);
+    Nsubjettiness subjettiness_1_charged(1, axis_spec_charged, parameters_charged);
+    Nsubjettiness subjettiness_2_charged(2, axis_spec_charged, parameters_charged);
+    Nsubjettiness subjettiness_3_charged(3, axis_spec_charged, parameters_charged);
 
-    fTTau1_nopix = (float) subjettiness_1.result(leading_jet_nopix);
-    fTTau2_nopix = (float) subjettiness_2.result(leading_jet_nopix);
-    fTTau3_nopix = (float) subjettiness_3.result(leading_jet_nopix);
 
-    fTTau32_nopix = (abs(fTTau2_nopix) < 1e-4 ? -10 : fTTau3_nopix / fTTau2_nopix);
-    fTTau21_nopix = (abs(fTTau1_nopix) < 1e-4 ? -10 : fTTau2_nopix / fTTau1_nopix);
+    fTTau1_standard = (float) subjettiness_1_standard.result(leading_jet_standard);
+    fTTau2_standard = (float) subjettiness_2_standard.result(leading_jet_standard);
+    fTTau3_standard = (float) subjettiness_3_standard.result(leading_jet_standard);
 
-    tT->Fill();
+    fTTau1_charged = (float) subjettiness_1_charged.result(leading_jet_charged);
+    fTTau2_charged = (float) subjettiness_2_charged.result(leading_jet_charged);
+    fTTau3_charged = (float) subjettiness_3_charged.result(leading_jet_charged);
+
+    // TODO: Follow continue from here
+
+    fTTau32_standard = (abs(fTTau2_standard) < 1e-4 ? -10 : fTTau3_standard / fTTau2_standard);
+    fTTau21_standard = (abs(fTTau1_standard) < 1e-4 ? -10 : fTTau2_standard / fTTau1_standard);
+
+    fTTau32_charged = (abs(fTTau2_charged) < 1e-4 ? -10 : fTTau3_charged / fTTau2_charged);
+    fTTau21_charged = (abs(fTTau1_charged) < 1e-4 ? -10 : fTTau2_charged / fTTau1_charged);
+
+    fTTau1_nopix_standard = (float) subjettiness_1_standard.result(leading_jet_nopix_standard);
+    fTTau2_nopix_standard = (float) subjettiness_2_standard.result(leading_jet_nopix_standard);
+    fTTau3_nopix_standard = (float) subjettiness_3_standard.result(leading_jet_nopix_standard);
+
+    fTTau1_nopix_charged = (float) subjettiness_1_charged.result(leading_jet_nopix_charged);
+    fTTau2_nopix_charged = (float) subjettiness_2_charged.result(leading_jet_nopix_charged);
+    fTTau3_nopix_charged = (float) subjettiness_3_charged.result(leading_jet_nopix_charged);
+
+    fTTau32_nopix_standard = (abs(fTTau2_nopix_standard) < 1e-4 ? -10 : fTTau3_nopix_standard / fTTau2_nopix_standard);
+    fTTau21_nopix_standard = (abs(fTTau1_nopix_standard) < 1e-4 ? -10 : fTTau2_nopix_standard / fTTau1_nopix_standard);
+
+    fTTau32_nopix_charged = (abs(fTTau2_nopix_charged) < 1e-4 ? -10 : fTTau3_nopix_charged / fTTau2_nopix_charged);
+    fTTau21_nopix_charged = (abs(fTTau1_nopix_charged) < 1e-4 ? -10 : fTTau2_nopix_charged / fTTau1_nopix_charged);
+
+    tT_standard->Fill();
+
+    tT_charged->Fill();
 
     return;
 }
@@ -473,91 +670,172 @@ csLargeR_nopix.inclusive_jets(10.0));
 // declare branches
 void myexampleAnalysis::DeclareBranches()
 {
+    // Event Standard Properties 
+    tT_standard->Branch("NFilled", &fTNFilled_standard, "NFilled/I");
 
-    // Event Properties 
-    tT->Branch("NFilled", &fTNFilled, "NFilled/I");
+    tT_standard->Branch("Intensity", *&fTIntensity_standard, "Intensity[NFilled]/F");
+    tT_standard->Branch("Intensity_pT", *&fTIntensity_pT_standard, "Intensity_pT[NFilled]/F");
 
-    tT->Branch("Intensity", *&fTIntensity, "Intensity[NFilled]/F");
-    tT->Branch("Intensity_pT", *&fTIntensity_pT, "Intensity_pT[NFilled]/F");
+    tT_standard->Branch("SubLeadingEta", &fTSubLeadingEta_standard, "SubLeadingEta/F");
+    tT_standard->Branch("SubLeadingPhi", &fTSubLeadingPhi_standard, "SubLeadingPhi/F");
 
-    tT->Branch("SubLeadingEta", &fTSubLeadingEta, "SubLeadingEta/F");
-    tT->Branch("SubLeadingPhi", &fTSubLeadingPhi, "SubLeadingPhi/F");
+    tT_standard->Branch("PCEta", &fTPCEta_standard, "PCEta/F");
+    tT_standard->Branch("PCPhi", &fTPCPhi_standard, "PCPhi/F");
 
-    tT->Branch("PCEta", &fTPCEta, "PCEta/F");
-    tT->Branch("PCPhi", &fTPCPhi, "PCPhi/F");
+    tT_standard->Branch("LeadingEta", &fTLeadingEta_standard, "LeadingEta/F");
+    tT_standard->Branch("LeadingPhi", &fTLeadingPhi_standard, "LeadingPhi/F");
+    tT_standard->Branch("LeadingPt", &fTLeadingPt_standard, "LeadingPt/F");
+    tT_standard->Branch("LeadingM", &fTLeadingM_standard, "LeadingM/F");
 
-    tT->Branch("LeadingEta", &fTLeadingEta, "LeadingEta/F");
-    tT->Branch("LeadingPhi", &fTLeadingPhi, "LeadingPhi/F");
-    tT->Branch("LeadingPt", &fTLeadingPt, "LeadingPt/F");
-    tT->Branch("LeadingM", &fTLeadingM, "LeadingM/F");
+    tT_standard->Branch("LeadingEta_nopix", &fTLeadingEta_nopix_standard, "LeadingEta_nopix/F");
+    tT_standard->Branch("LeadingPhi_nopix", &fTLeadingPhi_nopix_standard, "LeadingPhi_nopix/F");
+    tT_standard->Branch("LeadingPt_nopix", &fTLeadingPt_nopix_standard, "LeadingPt_nopix/F");
+    tT_standard->Branch("LeadingM_nopix", &fTLeadingM_nopix_standard, "LeadingM_nopix/F");
 
-    tT->Branch("LeadingEta_nopix", &fTLeadingEta_nopix, "LeadingEta_nopix/F");
-    tT->Branch("LeadingPhi_nopix", &fTLeadingPhi_nopix, "LeadingPhi_nopix/F");
-    tT->Branch("LeadingPt_nopix", &fTLeadingPt_nopix, "LeadingPt_nopix/F");
-    tT->Branch("LeadingM_nopix", &fTLeadingM_nopix, "LeadingM_nopix/F");
+    tT_standard->Branch("Tau1", &fTTau1_standard, "Tau1/F");
+    tT_standard->Branch("Tau2", &fTTau2_standard, "Tau2/F");
+    tT_standard->Branch("Tau3", &fTTau3_standard, "Tau3/F");
 
-    tT->Branch("Tau1", &fTTau1, "Tau1/F");
-    tT->Branch("Tau2", &fTTau2, "Tau2/F");
-    tT->Branch("Tau3", &fTTau3, "Tau3/F");
+    tT_standard->Branch("Tau1_nopix", &fTTau1_nopix_standard, "Tau1_nopix/F");
+    tT_standard->Branch("Tau2_nopix", &fTTau2_nopix_standard, "Tau2_nopix/F");
+    tT_standard->Branch("Tau3_nopix", &fTTau3_nopix_standard, "Tau3_nopix/F");
 
-    tT->Branch("Tau1_nopix", &fTTau1_nopix, "Tau1_nopix/F");
-    tT->Branch("Tau2_nopix", &fTTau2_nopix, "Tau2_nopix/F");
-    tT->Branch("Tau3_nopix", &fTTau3_nopix, "Tau3_nopix/F");
+    tT_standard->Branch("DeltaR", &fTdeltaR_standard, "DeltaR/F");
 
-    tT->Branch("DeltaR", &fTdeltaR, "DeltaR/F");
-
-    tT->Branch("Tau32", &fTTau32, "Tau32/F");
-    tT->Branch("Tau21", &fTTau21, "Tau21/F");
+    tT_standard->Branch("Tau32", &fTTau32_standard, "Tau32/F");
+    tT_standard->Branch("Tau21", &fTTau21_standard, "Tau21/F");
     
-    tT->Branch("Tau32_nopix", &fTTau32_nopix, "Tau32_nopix/F");
-    tT->Branch("Tau21_nopix", &fTTau21_nopix, "Tau21_nopix/F");
+    tT_standard->Branch("Tau32_nopix", &fTTau32_nopix_standard, "Tau32_nopix/F");
+    tT_standard->Branch("Tau21_nopix", &fTTau21_nopix_standard, "Tau21_nopix/F");
 
-    tT->Branch("pull1", &fTpull1, "pull1/F");
-    tT->Branch("pull2", &fTpull2, "pull2/F");
+    tT_standard->Branch("pull1", &fTpull1_standard, "pull1/F");
+    tT_standard->Branch("pull2", &fTpull2_standard, "pull2/F");
 
-    tT->Branch("pull1_nopix", &fTpull1_nopix, "pull1_nopix/F");
-    tT->Branch("pull2_nopix", &fTpull2_nopix, "pull2_nopix/F");
+    tT_standard->Branch("pull1_nopix", &fTpull1_nopix_standard, "pull1_nopix/F");
+    tT_standard->Branch("pull2_nopix", &fTpull2_nopix_standard, "pull2_nopix/F");
+
+    // Event Charged Properties 
+    tT_charged->Branch("NFilled", &fTNFilled_charged, "NFilled/I");
+
+    tT_charged->Branch("Intensity", *&fTIntensity_charged, "Intensity[NFilled]/F");
+    tT_charged->Branch("Intensity_pT", *&fTIntensity_pT_charged, "Intensity_pT[NFilled]/F");
+
+    tT_charged->Branch("SubLeadingEta", &fTSubLeadingEta_charged, "SubLeadingEta/F");
+    tT_charged->Branch("SubLeadingPhi", &fTSubLeadingPhi_charged, "SubLeadingPhi/F");
+
+    tT_charged->Branch("PCEta", &fTPCEta_charged, "PCEta/F");
+    tT_charged->Branch("PCPhi", &fTPCPhi_charged, "PCPhi/F");
+
+    tT_charged->Branch("LeadingEta", &fTLeadingEta_charged, "LeadingEta/F");
+    tT_charged->Branch("LeadingPhi", &fTLeadingPhi_charged, "LeadingPhi/F");
+    tT_charged->Branch("LeadingPt", &fTLeadingPt_charged, "LeadingPt/F");
+    tT_charged->Branch("LeadingM", &fTLeadingM_charged, "LeadingM/F");
+
+    tT_charged->Branch("LeadingEta_nopix", &fTLeadingEta_nopix_charged, "LeadingEta_nopix/F");
+    tT_charged->Branch("LeadingPhi_nopix", &fTLeadingPhi_nopix_charged, "LeadingPhi_nopix/F");
+    tT_charged->Branch("LeadingPt_nopix", &fTLeadingPt_nopix_charged, "LeadingPt_nopix/F");
+    tT_charged->Branch("LeadingM_nopix", &fTLeadingM_nopix_charged, "LeadingM_nopix/F");
+
+    tT_charged->Branch("Tau1", &fTTau1_charged, "Tau1/F");
+    tT_charged->Branch("Tau2", &fTTau2_charged, "Tau2/F");
+    tT_charged->Branch("Tau3", &fTTau3_charged, "Tau3/F");
+
+    tT_charged->Branch("Tau1_nopix", &fTTau1_nopix_charged, "Tau1_nopix/F");
+    tT_charged->Branch("Tau2_nopix", &fTTau2_nopix_charged, "Tau2_nopix/F");
+    tT_charged->Branch("Tau3_nopix", &fTTau3_nopix_charged, "Tau3_nopix/F");
+
+    tT_charged->Branch("DeltaR", &fTdeltaR_charged, "DeltaR/F");
+
+    tT_charged->Branch("Tau32", &fTTau32_charged, "Tau32/F");
+    tT_charged->Branch("Tau21", &fTTau21_charged, "Tau21/F");
+
+    tT_charged->Branch("Tau32_nopix", &fTTau32_nopix_charged, "Tau32_nopix/F");
+    tT_charged->Branch("Tau21_nopix", &fTTau21_nopix_charged, "Tau21_nopix/F");
+
+    tT_charged->Branch("pull1", &fTpull1_charged, "pull1/F");
+    tT_charged->Branch("pull2", &fTpull2_charged, "pull2/F");
+
+    tT_charged->Branch("pull1_nopix", &fTpull1_nopix_charged, "pull1_nopix/F");
+    tT_charged->Branch("pull2_nopix", &fTpull2_nopix_charged, "pull2_nopix/F");
 
     return;
 }
 
 // resets vars
 void myexampleAnalysis::ResetBranches(){
-    // reset branches 
-    fTNFilled = MaxN;
-    fTSubLeadingPhi = -999;
-    fTSubLeadingEta = -999;
-    fTPCPhi = -999;
-    fTPCEta = -999;
-    //fTRotationAngle = -999;
+    // reset branches
+
+    // Standard Jets
+    fTNFilled_standard = MaxN;
+    fTSubLeadingPhi_standard = -999;
+    fTSubLeadingEta_standard = -999;
+    fTPCPhi_standard = -999;
+    fTPCEta_standard = -999;
   
-    fTTau32 = -999;
-    fTTau21 = -999;
+    fTTau32_standard = -999;
+    fTTau21_standard = -999;
 
-    fTTau1 = -999;
-    fTTau2 = -999;
-    fTTau3 = -999;
+    fTTau1_standard = -999;
+    fTTau2_standard = -999;
+    fTTau3_standard = -999;
 
-    fTTau32_nopix = -999;
-    fTTau21_nopix = -999;
+    fTTau32_nopix_standard = -999;
+    fTTau21_nopix_standard = -999;
 
-    fTTau1_nopix = -999;
-    fTTau2_nopix = -999;
-    fTTau3_nopix = -999;
+    fTTau1_nopix_standard = -999;
+    fTTau2_nopix_standard = -999;
+    fTTau3_nopix_standard = -999;
 
-    fTLeadingEta = -999;
-    fTLeadingPhi = -999;
-    fTLeadingPt = -999;
-    fTLeadingM = -999;
+    fTLeadingEta_standard = -999;
+    fTLeadingPhi_standard = -999;
+    fTLeadingPt_standard = -999;
+    fTLeadingM_standard = -999;
 
-    fTLeadingEta_nopix = -999;
-    fTLeadingPhi_nopix = -999;
-    fTLeadingPt_nopix = -999;
-    fTLeadingM_nopix = -999;
+    fTLeadingEta_nopix_standard = -999;
+    fTLeadingPhi_nopix_standard = -999;
+    fTLeadingPt_nopix_standard = -999;
+    fTLeadingM_nopix_standard = -999;
 
     for (int iP=0; iP < MaxN; ++iP)
     {
-        fTIntensity[iP]= -999;
-	fTIntensity_pT[iP]= -999;
+        fTIntensity_standard[iP]= -999;
+	fTIntensity_pT_standard[iP]= -999;
+    }
+
+    // Charged Jets
+    fTNFilled_charged = MaxN;
+    fTSubLeadingPhi_charged = -999;
+    fTSubLeadingEta_charged = -999;
+    fTPCPhi_charged = -999;
+    fTPCEta_charged = -999;
+    
+    fTTau32_charged = -999;
+    fTTau21_charged = -999;
+
+    fTTau1_charged = -999;
+    fTTau2_charged = -999;
+    fTTau3_charged = -999;
+
+    fTTau32_nopix_charged = -999;
+    fTTau21_nopix_charged = -999;
+
+    fTTau1_nopix_charged = -999;
+    fTTau2_nopix_charged = -999;
+    fTTau3_nopix_charged = -999;
+
+    fTLeadingEta_charged = -999;
+    fTLeadingPhi_charged = -999;
+    fTLeadingPt_charged = -999;
+    fTLeadingM_charged = -999;
+
+    fTLeadingEta_nopix_charged = -999;
+    fTLeadingPhi_nopix_charged = -999;
+    fTLeadingPt_nopix_charged = -999;
+    fTLeadingM_nopix_charged = -999;
+
+    for (int iP=0; iP < MaxN; ++iP)
+    {
+        fTIntensity_charged[iP]= -999;
+        fTIntensity_pT_charged[iP]= -999;
     }
 }
