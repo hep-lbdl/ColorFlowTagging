@@ -34,7 +34,8 @@ def perfectsquare(n):
 
 
 if __name__ == '__main__':
-    tree = None
+    tree_charged = None
+    tree_standard = None
     parser = ArgumentParser()
     parser.add_argument('--verbose',
                         action='store_true',
@@ -50,14 +51,13 @@ if __name__ == '__main__':
                         help='ROOT file *prefix* to dump all this into (writes to TTree `images`). the .root '
                              'extension will be added.')
     parser.add_argument('--hdf5',
-			default=None,
-			help='Filename *prefix* to write out the data. (a .h5 ext will be added to the end)')
+                        default=None,
+                        help='Filename *prefix* to write out the data. (a .h5 ext will be added to the end)')
     parser.add_argument('--save',
                         default=None,
                         help='Filename *prefix* to write out the data. (a .npy ext will be added to the end)')
     parser.add_argument('--plot',
-                        help='File prefix that\
-                         will be part of plotting filenames.')
+                        help='File prefix that will be part of plotting file names.')
     parser.add_argument('--pixelSize', default=65, type=int, help='size of one side of the image, in pixels')
 
     parser.add_argument('--chunk', default=10, type=int, help='number of files to chunk together')
@@ -133,9 +133,9 @@ if __name__ == '__main__':
 
     # -- create buffer for the tree
     class JetImage(TreeModel):
-        '''
+        """
         Buffer for Jet Image
-        '''
+        """
         # -- START BUFFER
 
         # -- raveled image
@@ -160,8 +160,8 @@ if __name__ == '__main__':
         pull1 = FloatCol()
         pull2 = FloatCol()
 
-	# standard vs charged
-	s_vs_c_dR = FloatCol()
+        # standard vs charged
+        s_vs_c_dR = FloatCol()
         # -- END BUFFER
 
 
@@ -194,7 +194,7 @@ if __name__ == '__main__':
                 logger.info('Making ROOT file: {}'.format(args.dump + '-chnk{}.root'.format(CURRENT_CHUNK)))
                 ROOTfile = root_open(args.dump + '-chnk{}.root'.format(CURRENT_CHUNK), "recreate")
                 tree_standard = Tree('images', model=JetImage)
-		tree_charged = Tree('images', model=JetImage)
+                tree_charged = Tree('images', model=JetImage)
         except Exception:
             continue
 
@@ -202,105 +202,142 @@ if __name__ == '__main__':
         try:
             with root_open(fname) as f:
                 df_s = f.StandardEventTree.to_array()
-		df_c = f.ChargedEventTree.to_array()
+                df_c = f.ChargedEventTree.to_array()
 
-		assert df_s.shape[0] == df_c.shape[0]
+            assert df_s.shape[0] == df_c.shape[0]
 
-		n_entries = df.shape[0]
+            n_entries = df_s.shape[0]
 
-                pix_s = df[0]['Intensity'].shape[0]
-		pix_c = df[0]['Intensity'].shape[0]
+            pix_s = df_s[0]['Intensity'].shape[0]
+            pix_c = df_c[0]['Intensity'].shape[0]
 
-		assert pix_s == pix_c
+            assert pix_s == pix_c
 
-                if not perfectsquare(pix):
-                    raise ValueError('shape of image array must be square.')
+            if not perfectsquare(pix_s):
+                raise ValueError('shape of image array must be square.')
 
-                if (pix_per_side > 1) and (int(np.sqrt(pix_s)) != pix_per_side):
-                    raise ValueError('all files must have same sized images.')
+            if (pix_per_side > 1) and (int(np.sqrt(pix_s)) != pix_per_side):
+                raise ValueError('all files must have same sized images.')
 
-                pix_per_side = int(np.sqrt(pix))
-                logger.info('Pixel Size: {}'.format(pix_per_side))
+            pix_per_side = int(np.sqrt(pix_s))
+            logger.info('Pixel Size: {}'.format(pix_per_side))
 
-                tag = is_signal(fname, signal_match)
-                logger.info('Logging as {}'.format(tag))
+            tag = is_signal(fname, signal_match)
+            logger.info('Logging as {}'.format(tag))
 
-                for jet_nb, jet_s in enumerate(df_s):
-                    if jet_nb % 1000 == 0:
-                        logger.info('processing jet {} of {} for file {}'.format(
-                            jet_nb, n_entries, fname
-                        )
-                        )
-                    if (((np.abs(jet_s['LeadingEta']) < eta_max) & (jet_s['LeadingPt'] > ptj_min) & (
-                           jet_s['LeadingPt'] < ptj_max) & (jet_s['LeadingM'] < mass_max) & (
-                           jet_s['LeadingM'] > mass_min)) and 
-			   ((np.abs(jet_c['LeadingEta']) < eta_max) & (jet_c['LeadingPt'] > ptj_min) & (
-                           jet_c['LeadingPt'] < ptj_max) & (jet_c['LeadingM'] < mass_max) & (
-                           jet_c['LeadingM'] > mass_min))) or not apply_cuts:
+            for jet_nb, jet_s in enumerate(df_s):
+                jet_c = df_c[jet_nb]
+                if jet_nb % 1000 == 0:
+                    logger.info('processing jet {} of {} for file {}'.format(
+                        jet_nb, n_entries, fname
+                    )
+                    )
+                if (((np.abs(jet_s['LeadingEta']) < eta_max) & (jet_s['LeadingPt'] > ptj_min) & (
+                       jet_s['LeadingPt'] < ptj_max) & (jet_s['LeadingM'] < mass_max) & (
+                       jet_s['LeadingM'] > mass_min)) and
+                    ((np.abs(jet_c['LeadingEta']) < eta_max) & (jet_c['LeadingPt'] > ptj_min) & (
+                       jet_c['LeadingPt'] < ptj_max) & (jet_c['LeadingM'] < mass_max) & (
+                       jet_c['LeadingM'] > mass_min))) or not apply_cuts:
 
-                        buf_c = buffer_to_jet(jet_s, args.pixelSize, tag, max_entry=100000, rotate=rotate, normalize=normalize)
-                        buf_s = buffer_to_jet(jet_s, args.pixelSize, tag, max_entry=100000, rotate=rotate, normalize=normalize)
-                        if buf is None:
-                            continue
-                        if args.dump:
-                            tree_standard.image = buf[0].ravel()  # .astype('float32')
-                            tree_standard.signal = buf[1]
-                            tree_standard.jet_pt = buf[2]
-                            tree_standard.jet_eta = buf[3]
-                            tree_standard.jet_phi = buf[4]
-                            tree_standard.jet_m = buf[5]
-                            tree_standard.jet_delta_R = buf[6]
-                            tree_standard.tau_32 = buf[7]
-                            tree_standard.tau_21 = buf[8]
-                            tree_standard.tau_1 = buf[9]
-                            tree_standard.tau_2 = buf[10]
-                            tree_standard.tau_3 = buf[11]
-                            tree_standard.pull1 = buf[12]
-                            tree_standard.pull2 = buf[13]
-                        if savefile is not None:
-                            entries_standard.append(buf)
-                        if hdf5 is not None:
-                            dr = np.hypot(
-			    img_entries_charged.append(buf[0])
-                            entries_charged.append(buf[1:])
-                            img_entries_standard.append(buf[0])
-                            entries_standard.append(buf[1:])
-                        if args.dump:
-                            tree.fill()
+                    buf_c = buffer_to_jet(jet_s, args.pixelSize, tag, max_entry=100000, rotate=rotate, normalize=normalize)
+                    buf_s = buffer_to_jet(jet_s, args.pixelSize, tag, max_entry=100000, rotate=rotate, normalize=normalize)
+                    if buf_s is None or buf_c is None:
+                        continue
+                    dR = np.hypot(buf_s[3] - buf_c[3], buf_s[4] - buf_s[4])
+                    if args.dump:
+                        tree_standard.image = buf_s[0].ravel()  # .astype('float32')
+                        tree_standard.signal = buf_s[1]
+                        tree_standard.jet_pt = buf_s[2]
+                        tree_standard.jet_eta = buf_s[3]
+                        tree_standard.jet_phi = buf_s[4]
+                        tree_standard.jet_m = buf_s[5]
+                        tree_standard.jet_delta_R = buf_s[6]
+                        tree_standard.tau_32 = buf_s[7]
+                        tree_standard.tau_21 = buf_s[8]
+                        tree_standard.tau_1 = buf_s[9]
+                        tree_standard.tau_2 = buf_s[10]
+                        tree_standard.tau_3 = buf_s[11]
+                        tree_standard.pull1 = buf_s[12]
+                        tree_standard.pull2 = buf_s[13]
+                        tree_standard.s_vs_c_dR = dR
 
-            # -- Check for chunking
-            N_CHUNKED += 1
-            # -- we've reached the max chunk size
-            if N_CHUNKED >= CHUNK_MAX:
-                logger.info('{} files chunked, max is {}'.format(N_CHUNKED, CHUNK_MAX))
-                N_CHUNKED = 0
-                # -- clear the env, and reset
-                if args.dump:
-                    tree.write()
-                    ROOTfile.close()
-                    ROOTfile = None
-                    tree = None
-                CURRENT_CHUNK += 1
+                        tree_charged.image = buf_c[0].ravel()  # .astype('float32')
+                        tree_charged.signal = buf_c[1]
+                        tree_charged.jet_pt = buf_c[2]
+                        tree_charged.jet_eta = buf_c[3]
+                        tree_charged.jet_phi = buf_c[4]
+                        tree_charged.jet_m = buf_c[5]
+                        tree_charged.jet_delta_R = buf_c[6]
+                        tree_charged.tau_32 = buf_c[7]
+                        tree_charged.tau_21 = buf_c[8]
+                        tree_charged.tau_1 = buf_c[9]
+                        tree_charged.tau_2 = buf_c[10]
+                        tree_charged.tau_3 = buf_c[11]
+                        tree_charged.pull1 = buf_c[12]
+                        tree_charged.pull2 = buf_c[13]
+                        tree_charged.s_vs_c_dR = dR
+
+                    if savefile is not None:
+                        entries_standard.append(buf_s + [dR])
+                        entries_charged.append(buf_c + [dR])
+                    if hdf5 is not None:
+                        img_entries_standard.append(buf_s[0])
+                        entries_standard.append(buf_s[1:] + [dR])
+                        img_entries_charged.append(buf_c[0])
+                        entries_charged.append(buf_c[1:] + [dR])
+                    if args.dump:
+                        tree_standard.fill()
+                        tree_charged.fill()
+
+                # -- Check for chunking
+                N_CHUNKED += 1
+                # -- we've reached the max chunk size
+                if N_CHUNKED >= CHUNK_MAX:
+                    logger.info('{} files chunked, max is {}'.format(N_CHUNKED, CHUNK_MAX))
+                    N_CHUNKED = 0
+                    # -- clear the env, and reset
+                    if args.dump:
+                        tree_standard.write()
+                        tree_charged.write()
+                        ROOTfile.close()
+                        ROOTfile = None
+                        tree_standard = None
+                        tree_charged = None
+                    CURRENT_CHUNK += 1
         except KeyboardInterrupt:
             logger.info('Skipping file {}'.format(fname))
         except AttributeError:
             logger.info('Skipping file {} for compatibility reasons'.format(fname))
-    if args.dump and tree is not None:
-        tree.write()
+    if args.dump and tree_standard is not None and tree_charged is not None:
+        tree_charged.write()
+        tree_standard.write()
         ROOTfile.close()
 
     if hdf5 is not None:
+        with h5py.File(hdf5 + '_standard.h5', mode='w') as hf:
+            entries = np.array(entries_standard)
+            del entries_standard
 
-        with h5py.File(hdf5 + '.h5', mode='w') as hf:
-            entries = np.array(entries)
             t = hf.create_group('meta_variables')
             _buf_names = ['signal', 'jet_pt', 'jet_eta', 'jet_phi', 'jet_mass', 'jet_delta_R', 'tau_32', 'tau_21', 
-                          'tau_1', 'tau_2', 'tau_3', 'pull1', 'pull2']
+                          'tau_1', 'tau_2', 'tau_3', 'pull1', 'pull2', 'dR_standard_vs_charged']
             for idx, meta in enumerate(_buf_names):
                 t.create_dataset(meta, data=entries[:, idx])
             del entries
-            hf.create_dataset('images', data=img_entries)
-            del img_entries
+            hf.create_dataset('images', data=img_entries_standard)
+            del img_entries_standard
+
+        with h5py.File(hdf5 + '_standard.h5', mode='w') as hf:
+            entries = np.array(entries_charged)
+            t = hf.create_group('meta_variables')
+            _buf_names = ['signal', 'jet_pt', 'jet_eta', 'jet_phi', 'jet_mass', 'jet_delta_R', 'tau_32', 'tau_21',
+                          'tau_1', 'tau_2', 'tau_3', 'pull1', 'pull2', 'dR_standard_vs_charged']
+            for idx, meta in enumerate(_buf_names):
+                t.create_dataset(meta, data=entries[:, idx])
+            del entries
+            del entries_charged
+            hf.create_dataset('images', data=img_entries_charged)
+            del img_entries_charged
 
     if savefile is not None:
         # -- datatypes for outputted file.
@@ -317,13 +354,18 @@ if __name__ == '__main__':
                      ('tau_2', 'float32'),
                      ('tau_3', 'float32'),
                      ('pull1', 'float32'),
-                     ('pull2', 'float32'), ]
+                     ('pull2', 'float32'),
+                     ('dR_standard_vs_charged', 'float32')]
 
-        df = np.array(entries, dtype=_bufdtype)
+        df_s = np.array(entries_standard, dtype=_bufdtype)
+        df_c = np.array(entries_standard, dtype=_bufdtype)
         logger.info('saving to file: {}'.format(savefile))
-        np.save(savefile, df)
+        np.save(savefile + '_standard', df_s)
+        np.save(savefile + '_charged', df_s)
 
         if plt_prefix != '':
             logger.info('plotting...')
-            plot_mean_jet(df[df['signal'] == 0], title="Average Jet Image, Background").savefig(plt_prefix + '_bkg.pdf')
-            plot_mean_jet(df[df['signal'] == 1], title="Average Jet Image, Signal").savefig(plt_prefix + '_signal.pdf')
+            plot_mean_jet(df_s[df_s['signal'] == 0], title="Average Standard Jet Image, Background").\
+                savefig(plt_prefix + '_bkg.pdf')
+            plot_mean_jet(df_c[df_c['signal'] == 1], title="Average Charged Jet Image, Signal").\
+                savefig(plt_prefix + '_signal.pdf')
