@@ -58,7 +58,7 @@ if __name__ == '__main__':
     parser.add_argument('--plot',
                         help='File prefix that\
                          will be part of plotting filenames.')
-    parser.add_argument('--pixelSize', default=25, type=int, help='size of one side of the image, in pixels')
+    parser.add_argument('--pixelSize', default=65, type=int, help='size of one side of the image, in pixels')
 
     parser.add_argument('--chunk', default=10, type=int, help='number of files to chunk together')
 
@@ -72,9 +72,14 @@ if __name__ == '__main__':
 
     parser.add_argument('--massMax', default=150.0, type=float, help='Upper bound of cut on mass of leading jet')
 
+    parser.add_argument('--applyCuts', default=False, type=str, help='Whether to apply all the cuts or not')
+
+    parser.add_argument('--rotate', default=True, type=str, help='Whether to rotate the image or not')
+
+    parser.add_argument('--norm', default=True, type=str, help='Whether to normalize the image or not')
+
     parser.add_argument('files', nargs='*', help='Files to pass in')
 
-    
     args = parser.parse_args()
 
     # -- check for logic errors
@@ -98,6 +103,22 @@ if __name__ == '__main__':
     mass_min = args.massMin
     mass_max = args.massMax
 
+    truth = ['1', 'True', 'true', 'y', 'Y', 'T', 't']
+
+    if args.applyCuts in truth:
+        apply_cuts = True
+    else:
+        apply_cuts = False
+    
+    if args.rotate in truth:
+        rotate = True
+    else:
+        rotate = False
+
+    if args.norm in truth:
+        normalize = True
+    else:
+        normalize = False
 
     if args.plot:
         plt_prefix = args.plot
@@ -138,12 +159,17 @@ if __name__ == '__main__':
         tau_3 = FloatCol()
         pull1 = FloatCol()
         pull2 = FloatCol()
+
+	# standard vs charged
+	s_vs_c_dR = FloatCol()
         # -- END BUFFER
 
 
     pix_per_side = -999
-    entries = []
-    img_entries = []
+    entries_standard = []
+    entries_charged = []
+    img_entries_standard = []
+    img_entries_charged = []
 
     CHUNK_MAX = int(args.chunk)
     print('chunk max is {}'.format(CHUNK_MAX))
@@ -167,23 +193,30 @@ if __name__ == '__main__':
             if args.dump and ROOTfile is None:
                 logger.info('Making ROOT file: {}'.format(args.dump + '-chnk{}.root'.format(CURRENT_CHUNK)))
                 ROOTfile = root_open(args.dump + '-chnk{}.root'.format(CURRENT_CHUNK), "recreate")
-                tree = Tree('images', model=JetImage)
+                tree_standard = Tree('images', model=JetImage)
+		tree_charged = Tree('images', model=JetImage)
         except Exception:
             continue
 
         logger.info('({} of {}) working on file: {}'.format(i, len(files), fname))
         try:
             with root_open(fname) as f:
-                df = f.EventTree.to_array()
+                df_s = f.StandardEventTree.to_array()
+		df_c = f.ChargedEventTree.to_array()
 
-                n_entries = df.shape[0]
+		assert df_s.shape[0] == df_c.shape[0]
 
-                pix = df[0]['Intensity'].shape[0]
+		n_entries = df.shape[0]
+
+                pix_s = df[0]['Intensity'].shape[0]
+		pix_c = df[0]['Intensity'].shape[0]
+
+		assert pix_s == pix_c
 
                 if not perfectsquare(pix):
                     raise ValueError('shape of image array must be square.')
 
-                if (pix_per_side > 1) and (int(np.sqrt(pix)) != pix_per_side):
+                if (pix_per_side > 1) and (int(np.sqrt(pix_s)) != pix_per_side):
                     raise ValueError('all files must have same sized images.')
 
                 pix_per_side = int(np.sqrt(pix))
@@ -191,37 +224,47 @@ if __name__ == '__main__':
 
                 tag = is_signal(fname, signal_match)
                 logger.info('Logging as {}'.format(tag))
-                for jet_nb, jet in enumerate(df):
+
+                for jet_nb, jet_s in enumerate(df_s):
                     if jet_nb % 1000 == 0:
                         logger.info('processing jet {} of {} for file {}'.format(
                             jet_nb, n_entries, fname
                         )
                         )
-                    if (np.abs(jet['LeadingEta']) < eta_max) & (jet['LeadingPt'] > ptj_min) & (
-                           jet['LeadingPt'] < ptj_max) & (jet['LeadingM'] < mass_max) & (
-                           jet['LeadingM'] > mass_min):
+                    if (((np.abs(jet_s['LeadingEta']) < eta_max) & (jet_s['LeadingPt'] > ptj_min) & (
+                           jet_s['LeadingPt'] < ptj_max) & (jet_s['LeadingM'] < mass_max) & (
+                           jet_s['LeadingM'] > mass_min)) and 
+			   ((np.abs(jet_c['LeadingEta']) < eta_max) & (jet_c['LeadingPt'] > ptj_min) & (
+                           jet_c['LeadingPt'] < ptj_max) & (jet_c['LeadingM'] < mass_max) & (
+                           jet_c['LeadingM'] > mass_min))) or not apply_cuts:
 
-                        buf = buffer_to_jet(jet, args.pixelSize, tag, max_entry=100000)
+                        buf_c = buffer_to_jet(jet_s, args.pixelSize, tag, max_entry=100000, rotate=rotate, normalize=normalize)
+                        buf_s = buffer_to_jet(jet_s, args.pixelSize, tag, max_entry=100000, rotate=rotate, normalize=normalize)
+                        if buf is None:
+                            continue
                         if args.dump:
-                            tree.image = buf[0].ravel()  # .astype('float32')
-                            tree.signal = buf[1]
-                            tree.jet_pt = buf[2]
-                            tree.jet_eta = buf[3]
-                            tree.jet_phi = buf[4]
-                            tree.jet_m = buf[5]
-                            tree.jet_delta_R = buf[6]
-                            tree.tau_32 = buf[7]
-                            tree.tau_21 = buf[8]
-                            tree.tau_1 = buf[9]
-                            tree.tau_2 = buf[10]
-                            tree.tau_3 = buf[11]
-                            tree.pull1 = buf[12]
-                            tree.pull2 = buf[13]
+                            tree_standard.image = buf[0].ravel()  # .astype('float32')
+                            tree_standard.signal = buf[1]
+                            tree_standard.jet_pt = buf[2]
+                            tree_standard.jet_eta = buf[3]
+                            tree_standard.jet_phi = buf[4]
+                            tree_standard.jet_m = buf[5]
+                            tree_standard.jet_delta_R = buf[6]
+                            tree_standard.tau_32 = buf[7]
+                            tree_standard.tau_21 = buf[8]
+                            tree_standard.tau_1 = buf[9]
+                            tree_standard.tau_2 = buf[10]
+                            tree_standard.tau_3 = buf[11]
+                            tree_standard.pull1 = buf[12]
+                            tree_standard.pull2 = buf[13]
                         if savefile is not None:
-                            entries.append(buf)
+                            entries_standard.append(buf)
                         if hdf5 is not None:
-                            img_entries.append(buf[0])
-                            entries.append(buf[1:])
+                            dr = np.hypot(
+			    img_entries_charged.append(buf[0])
+                            entries_charged.append(buf[1:])
+                            img_entries_standard.append(buf[0])
+                            entries_standard.append(buf[1:])
                         if args.dump:
                             tree.fill()
 
@@ -275,8 +318,7 @@ if __name__ == '__main__':
                      ('tau_3', 'float32'),
                      ('pull1', 'float32'),
                      ('pull2', 'float32'), ]
-        # print(entries)
-        # print(_bufdtype)
+
         df = np.array(entries, dtype=_bufdtype)
         logger.info('saving to file: {}'.format(savefile))
         np.save(savefile, df)
