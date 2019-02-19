@@ -6,7 +6,7 @@
 #include <string>
 
 #include "fastjet/ClusterSequence.hh"
-#include "fastjet/PseudoJet.hh"  
+#include "fastjet/PseudoJet.hh"
 #include "fastjet/tools/Filter.hh"
 #include "fastjet/Selector.hh"
 
@@ -29,7 +29,7 @@ class myexampleAnalysis
     public:
         myexampleAnalysis(int imagesize);
         ~myexampleAnalysis();
-        
+
         void Begin();
         void AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8::Pythia* pythia_MB, 
                 int NPV, int pixels, float range, float ptjMin, float ptjMax, float etaMax, float massMin, float massMax);
@@ -45,22 +45,26 @@ class myexampleAnalysis
             fDebug = debug;
         }
 
+        static bool endsWith(const std::string& str, const std::string& suffix)
+        {
+            return str.size() >= suffix.size() && 0 == str.compare(str.size()-suffix.size(), suffix.size(), suffix);
+        }
+
         void SetOutName(const string &outname)
         {
-            fOutName_standard = outname + "_standard.root";
-            fOutName_charged = outname + "_charged.root";
+            if (!endsWith(outname, ".root")) {
+                fOutName = outname + ".root";
+            }
         }
     private:
         int  ftest;
         int  fDebug;
-        string fOutName_standard;
-        string fOutName_charged;
+        string fOutName;
 
-        TFile *tF_standard;
+        TFile *tF;
         TTree *tT_standard;
-
-        TFile *tF_charged;
         TTree *tT_charged;
+
         myTools *tool;
 
         // Tree Vars ---------------------------------------

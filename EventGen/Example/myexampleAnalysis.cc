@@ -111,16 +111,15 @@ myexampleAnalysis::~myexampleAnalysis()
 void myexampleAnalysis::Begin()
 {
    // Declare TTree
-   tF_standard = new TFile(fOutName_standard.c_str(), "RECREATE");
-   tT_standard = new TTree("EventTree", "Event Tree for myexample");
-   
-   tF_charged = new TFile(fOutName_charged.c_str(), "RECREATE");
-   tT_charged = new TTree("EventTree", "Event Tree for myexample");
-   
+   tF = new TFile(fOutName.c_str(), "RECREATE");
+
+   tT_standard = new TTree("StandardEventTree", "Event Tree for myexample");
+   tT_charged = new TTree("ChargedEventTree", "Event Tree for myexample");
+
    // for stuff you want to do by hand
    DeclareBranches();
    ResetBranches();
-   
+
    return;
 }
 
@@ -128,10 +127,9 @@ void myexampleAnalysis::Begin()
 void myexampleAnalysis::End()
 {
     tT_standard->Write();
-    tF_standard->Close();
-    
     tT_charged->Write();
-    tF_charged->Close();
+
+    tF->Close();
     return;
 }
 
