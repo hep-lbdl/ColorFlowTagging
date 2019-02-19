@@ -18,7 +18,7 @@
 
 #include "myFastJetBase.h"
 #include "fastjet/ClusterSequence.hh"
-#include "fastjet/PseudoJet.hh"  
+#include "fastjet/PseudoJet.hh"
 #include "fastjet/tools/Filter.hh"
 #include "fastjet/Selector.hh"
 #include "fastjet/ClusterSequenceArea.hh"
@@ -49,7 +49,7 @@ std::tuple<double, double> calculate_pull(vector<fastjet::PseudoJet> subjets, my
       return std::make_tuple(p1, p2);
     }
     else {
-	throw 20;
+	throw 911;
         return std::make_tuple(NULL, NULL);
     }
 }
@@ -95,7 +95,7 @@ myexampleAnalysis::myexampleAnalysis(int imagesize)
     if(fDebug) cout << "myexampleAnalysis::myexampleAnalysis End " << endl;
 }
 
-// Destructor 
+// Destructor
 myexampleAnalysis::~myexampleAnalysis()
 {
     delete tool;
@@ -197,15 +197,14 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
             int ybin = detector_charged->GetXaxis()->FindBin(p.rapidity());
             int phibin = detector_charged->GetYaxis()->FindBin(p.phi());
 
-            detector_charged->SetBinContent(ybin, phibin, 
+            detector_charged->SetBinContent(ybin, phibin,
                 detector_charged->GetBinContent(ybin, phibin) + p.e());
-            
+
             particlesForJets_nopixel_charged.push_back(p_nopix);
         }
 
-        
-        
-    }  
+
+    }
     // end particle loop -----------------------------------------------  
 
     // Calculate the nopixalated leading standard jet (to go to the cutoff as fast as possible).
@@ -219,7 +218,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
 
     vector<fastjet::PseudoJet> considered_jets_nopix_standard = fastjet::sorted_by_pt(
         csLargeR_nopix_standard.inclusive_jets(10.0));
-    
+
 
     fastjet::PseudoJet leading_jet_nopix_standard = trimmer(considered_jets_nopix_standard[0]);
 
@@ -330,25 +329,30 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
 
     fTpull1_nopix_standard = -1;
     fTpull2_nopix_standard = -1;
-    
+
     fTpull1_nopix_charged = -1;
     fTpull2_nopix_charged = -1;
+    int e = 911;
+    try {
+        std::tuple<double, double> no_pix_pulls_standard = calculate_pull(subjets_nopix_standard, tool);
+        fTpull1_nopix_standard = get<0>(no_pix_pulls_standard);
+        fTpull2_nopix_standard = get<1>(no_pix_pulls_standard);
 
-    std::tuple<double, double> no_pix_pulls_standard = calculate_pull(subjets_nopix_standard, tool);
-    fTpull1_nopix_standard = get<0>(no_pix_pulls_standard);
-    fTpull2_nopix_standard = get<1>(no_pix_pulls_standard);
-   
-    std::tuple<double, double> no_pix_pulls_charged = calculate_pull(subjets_nopix_charged, tool);
-    fTpull1_nopix_charged = get<0>(no_pix_pulls_charged);
-    fTpull2_nopix_charged = get<1>(no_pix_pulls_charged);
-   
+        std::tuple<double, double> no_pix_pulls_charged = calculate_pull(subjets_nopix_charged, tool);
+        fTpull1_nopix_charged = get<0>(no_pix_pulls_charged);
+        fTpull2_nopix_charged = get<1>(no_pix_pulls_charged);
+    } catch(int e) {
+        return;
+    }
+
     fTdeltaR_standard = 0.;
     fTdeltaR_charged = 0.;
+
     if (leading_jet_standard.pieces().size() > 1){
       vector<fastjet::PseudoJet> subjets_standard = leading_jet_standard.pieces();
       TLorentzVector l(subjets_standard[0].px(),subjets_standard[0].py(),subjets_standard[0].pz(),subjets_standard[0].E());
       TLorentzVector sl(subjets_standard[1].px(),subjets_standard[1].py(),subjets_standard[1].pz(),subjets_standard[1].E());
-      fTdeltaR_standard = l.DeltaR(sl); 
+      fTdeltaR_standard = l.DeltaR(sl);
       fTSubLeadingEta_standard = sl.Eta()-l.Eta();
       fTSubLeadingPhi_standard = subjets_standard[1].delta_phi_to(subjets_standard[0]);
 
@@ -361,7 +365,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
       vector<fastjet::PseudoJet> subjets_charged = leading_jet_charged.pieces();
       TLorentzVector l(subjets_charged[0].px(),subjets_charged[0].py(),subjets_charged[0].pz(),subjets_charged[0].E());
       TLorentzVector sl(subjets_charged[1].px(),subjets_charged[1].py(),subjets_charged[1].pz(),subjets_charged[1].E());
-      fTdeltaR_charged = l.DeltaR(sl); 
+      fTdeltaR_charged = l.DeltaR(sl);
       fTSubLeadingEta_charged = sl.Eta()-l.Eta();
       fTSubLeadingPhi_charged = subjets_charged[1].delta_phi_to(subjets_charged[0]);
 
@@ -518,7 +522,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
 
     for(int i = 0; i < leading_jet_standard.constituents().size(); i++)
     {
-	    double x = consts_image_standard[i].first - mux_standard;
+        double x = consts_image_standard[i].first - mux_standard;
         double y = consts_image_standard[i].second - muy_standard;
         double E = sorted_consts_standard[i].e();
         double dotprod = dir_x_standard*x+dir_y_standard*y;
@@ -531,7 +535,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
 
     for(int i = 0; i < leading_jet_charged.constituents().size(); i++)
     {
-	    double x = consts_image_charged[i].first - mux_charged;
+	double x = consts_image_charged[i].first - mux_charged;
         double y = consts_image_charged[i].second - muy_charged;
         double E = sorted_consts_charged[i].e();
         double dotprod = dir_x_charged*x+dir_y_charged*y;

@@ -45,16 +45,10 @@ class myexampleAnalysis
             fDebug = debug;
         }
 
-        static bool endsWith(const std::string& str, const std::string& suffix)
-        {
-            return str.size() >= suffix.size() && 0 == str.compare(str.size()-suffix.size(), suffix.size(), suffix);
-        }
 
         void SetOutName(const string &outname)
         {
-            if (!endsWith(outname, ".root")) {
-                fOutName = outname + ".root";
-            }
+            fOutName = outname;
         }
     private:
         int  ftest;
