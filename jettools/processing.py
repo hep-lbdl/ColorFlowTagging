@@ -100,36 +100,13 @@ def buffer_to_jet(entry, pix, tag = 0, side = 'r', max_entry = None, rotate = Tr
         # return None
         e, p = (entry['SubLeadingEta'], entry['SubLeadingPhi'])
     
-    angle = np.arctan2(p, e) + 2.0 * np.arctan(1.0)
-
-    if (-np.sin(angle) * e + np.cos(angle) * p) > 0:
-        angle += -4.0 * np.arctan(1.0)
-    
-    '''    
-    print "angle:,",angle
-    for kk in range(-1000,1000):
-        angle = 4*np.arctan(1.)*kk/1000
-        #image_map = reset_image(np.array(entry['Intensity']))
-        image_map = np.array(entry['Intensity'])
-        image = flip_jet(rotate_jet(image_map, 0., pix, normalizer=4000.0), side)
-        before = image_mass(image, pix)
-        #print sum_image(image)
-        image = flip_jet(rotate_jet(image_map, -angle, pix, normalizer=4000.0), side)
-        #print sum_image(image)
-        after = image_mass(image,pix)
-        image = flip_jet(rotate_jet(image_map, 0., pix, normalizer=4000.0), side)
-        image = ben_rotate(image,angle,pix)
-        #print sum_image(image)
-        after2 = image_mass(image,pix)
-        print "angle, before, after, after(Ben), diff, diff",angle,before,after,after2,after-before,after-after2
-        pass
-
-    exit(1)
-    '''
-    print(entry['Intensity'].shape)
-    print(entry['Intensity'])
     
     if rotate:
+	
+        angle = np.arctan2(p, e) + 2.0 * np.arctan(1.0)
+        if (-np.sin(angle) * e + np.cos(angle) * p) > 0:
+            angle += -4.0 * np.arctan(1.0)
+
         image = flip_jet(rotate_jet(np.array(entry['Intensity']), -angle, pix, normalizer=4000.0), side) # change between (-angle <-> -4*np.arctan(1.0)) if testing
     else:
         image = flip_jet(rotate_jet(np.array(entry['Intensity']), 0.0, pix, normalizer=4000.0), side)
