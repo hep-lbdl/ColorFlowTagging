@@ -7,6 +7,7 @@ Simple utilities for processing the junk that comes out of the ntuple event gene
 
 import numpy.linalg as la
 import numpy as np
+import matplotlib.pyplot as plt
 from jettools import rotate_jet, flip_jet, plot_mean_jet
 from ROOT import*
 
@@ -18,28 +19,6 @@ def sum_image(image):
             pass
         pass
     return out
-
-#def reset_image(image):
-#    arange = 1.25;
-#    pixels      = 25;
-#    hold = TH2F("", "", pixels, -arange, arange, pixels, -arange, arange);
-#    counter = 0;
-#    eta0 = hold.GetYaxis().FindBin(0)
-#    phi0 = hold.GetXaxis().FindBin(1)
-#    phi1 = hold.GetXaxis().FindBin(-1)
-#    for i2 in range(1,hold.GetNbinsX()+1):
-#        for j2 in range(1,hold.GetNbinsY()+1):
-#            image[counter]=0
-#            if (j2==eta0 and i2==phi0):
-#                image[counter]=1
-#                pass
-#            if (j2==eta0 and i2==phi1):
-#                image[counter]=1
-#                pass
-#            counter+=1
-#            pass
-#        pass
-#    return image
 
 def ben_rotate(image,angle,pixels):
     arange = 1.25;
@@ -87,7 +66,7 @@ def angle_from_vec(v1, v2):
     return np.arctan2(sinang, cosang)
 
 
-def buffer_to_jet(entry, pix, tag = 0, side = 'r', max_entry = None):
+def buffer_to_jet(entry, pix, tag = 0, side = 'r', max_entry = None, rotate = True, normalize=True):
     """
     Takes an *single* entry from an structured ndarray, i.e., X[i], 
     and a tag = {0, 1} indicating if its a signal entry or not. 
@@ -111,10 +90,14 @@ def buffer_to_jet(entry, pix, tag = 0, side = 'r', max_entry = None):
         * pull2
     """
 
-
+    accessed = False
     if (entry['SubLeadingEta'] < -10) | (entry['SubLeadingPhi'] < -10):
+        # return None
+        accessed = True
         e, p = (entry['PCEta'], entry['PCPhi'])
+        # e, p = (entry['SubLeadingEta'], entry['SubLeadingPhi'])
     else:
+        # return None
         e, p = (entry['SubLeadingEta'], entry['SubLeadingPhi'])
     
     angle = np.arctan2(p, e) + 2.0 * np.arctan(1.0)
@@ -123,7 +106,7 @@ def buffer_to_jet(entry, pix, tag = 0, side = 'r', max_entry = None):
         angle += -4.0 * np.arctan(1.0)
     
     '''    
-    print "angleeee:,",angle
+    print "angle:,",angle
     for kk in range(-1000,1000):
         angle = 4*np.arctan(1.)*kk/1000
         #image_map = reset_image(np.array(entry['Intensity']))
@@ -143,15 +126,29 @@ def buffer_to_jet(entry, pix, tag = 0, side = 'r', max_entry = None):
 
     exit(1)
     '''
-
-    image = flip_jet(rotate_jet(np.array(entry['Intensity']), -4*np.arctan(1.0), pix, normalizer=4000.0), side) # change between (-angle <-> -4*np.arctan(1.0)) if testing
+    print(entry['Intensity'].shape)
+    print(entry['Intensity'])
+    
+    if rotate:
+        image = flip_jet(rotate_jet(np.array(entry['Intensity']), -angle, pix, normalizer=4000.0), side) # change between (-angle <-> -4*np.arctan(1.0)) if testing
+    else:
+        image = flip_jet(rotate_jet(np.array(entry['Intensity']), 0.0, pix, normalizer=4000.0), side)
+    
     e_norm = np.linalg.norm(image)
     #e_norm = 1./4000.0
-    return ((image / e_norm).astype('float32'), np.float32(tag), 
-        np.float32(entry['LeadingPt']), np.float32(entry['LeadingEta']), 
-        np.float32(entry['LeadingPhi']), np.float32(entry['LeadingM']), np.float32(entry['DeltaR']),
-        np.float32(entry['Tau32']), np.float32(entry['Tau21']), np.float32(entry['Tau1']), np.float32(entry['Tau2']), np.float32(entry['Tau3']), np.float32(entry['pull1']), np.float32(entry['pull2']))
-
+    # if accessed:
+    #     plt.imshow((image / e_norm))
+    #     plt.show()
+    if normalize:
+    	return ((image / e_norm).astype('float32'), np.float32(tag), 
+		np.float32(entry['LeadingPt']), np.float32(entry['LeadingEta']), 
+		np.float32(entry['LeadingPhi']), np.float32(entry['LeadingM']), np.float32(entry['DeltaR']),
+		np.float32(entry['Tau32']), np.float32(entry['Tau21']), np.float32(entry['Tau1']), np.float32(entry['Tau2']), np.float32(entry['Tau3']), np.float32(entry['pull1']), np.float32(entry['pull2']))
+    else:
+    	return ((image).astype('float32'), np.float32(tag), 
+		np.float32(entry['LeadingPt']), np.float32(entry['LeadingEta']), 
+		np.float32(entry['LeadingPhi']), np.float32(entry['LeadingM']), np.float32(entry['DeltaR']),
+		np.float32(entry['Tau32']), np.float32(entry['Tau21']), np.float32(entry['Tau1']), np.float32(entry['Tau2']), np.float32(entry['Tau3']), np.float32(entry['pull1']), np.float32(entry['pull2']))
 
 def is_signal(f, matcher = 'wprime'):
     """
