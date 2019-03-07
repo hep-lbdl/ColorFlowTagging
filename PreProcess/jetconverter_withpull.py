@@ -32,6 +32,9 @@ def perfectsquare(n):
     '''
     return n % n ** 0.5 == 0
 
+def change_angles(x):
+    return (x > np.pi) * (2 * np.pi - x) + x * (x <= np.pi)
+
 
 if __name__ == '__main__':
     tree_charged = None
@@ -239,10 +242,12 @@ if __name__ == '__main__':
                        jet_c['LeadingPt'] < ptj_max) & (jet_c['LeadingM'] < mass_max) & (
                        jet_c['LeadingM'] > mass_min))) or not apply_cuts:
 
-                    buf_c = buffer_to_jet(jet_s, args.pixelSize, tag, max_entry=100000, rotate=rotate, normalize=normalize)
-                    buf_s = buffer_to_jet(jet_s, args.pixelSize, tag, max_entry=100000, rotate=rotate, normalize=normalize)
+                    buf_c = list(buffer_to_jet(jet_c, args.pixelSize, tag, max_entry=100000, rotate=rotate, normalize=normalize))
+                    buf_s = list(buffer_to_jet(jet_s, args.pixelSize, tag, max_entry=100000, rotate=rotate, normalize=normalize))
                     if buf_s is None or buf_c is None:
                         continue
+                    buf_s[4] = change_angles(buf_s[4])
+                    buf_c[4] = change_angles(buf_c[4])
                     dR = np.hypot(buf_s[3] - buf_c[3], buf_s[4] - buf_s[4])
                     if args.dump:
                         tree_standard.image = buf_s[0].ravel()  # .astype('float32')
@@ -289,21 +294,21 @@ if __name__ == '__main__':
                         tree_standard.fill()
                         tree_charged.fill()
 
-                # -- Check for chunking
-                N_CHUNKED += 1
-                # -- we've reached the max chunk size
-                if N_CHUNKED >= CHUNK_MAX:
-                    logger.info('{} files chunked, max is {}'.format(N_CHUNKED, CHUNK_MAX))
-                    N_CHUNKED = 0
-                    # -- clear the env, and reset
-                    if args.dump:
-                        tree_standard.write()
-                        tree_charged.write()
-                        ROOTfile.close()
-                        ROOTfile = None
-                        tree_standard = None
-                        tree_charged = None
-                    CURRENT_CHUNK += 1
+            # -- Check for chunking
+            N_CHUNKED += 1
+            # -- we've reached the max chunk size
+            if N_CHUNKED >= CHUNK_MAX:
+                logger.info('{} files chunked, max is {}'.format(N_CHUNKED, CHUNK_MAX))
+                N_CHUNKED = 0
+                # -- clear the env, and reset
+                if args.dump:
+                    tree_standard.write()
+                    tree_charged.write()
+                    ROOTfile.close()
+                    ROOTfile = None
+                    tree_standard = None
+                    tree_charged = None
+	    CURRENT_CHUNK += 1
         except KeyboardInterrupt:
             logger.info('Skipping file {}'.format(fname))
         except AttributeError:
@@ -327,7 +332,7 @@ if __name__ == '__main__':
             hf.create_dataset('images', data=img_entries_standard)
             del img_entries_standard
 
-        with h5py.File(hdf5 + '_standard.h5', mode='w') as hf:
+        with h5py.File(hdf5 + '_charged.h5', mode='w') as hf:
             entries = np.array(entries_charged)
             t = hf.create_group('meta_variables')
             _buf_names = ['signal', 'jet_pt', 'jet_eta', 'jet_phi', 'jet_mass', 'jet_delta_R', 'tau_32', 'tau_21',
