@@ -640,8 +640,6 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     fTTau2_charged = (float) subjettiness_2_charged.result(leading_jet_charged);
     fTTau3_charged = (float) subjettiness_3_charged.result(leading_jet_charged);
 
-    // TODO: Follow continue from here
-
     fTTau32_standard = (abs(fTTau2_standard) < 1e-4 ? -10 : fTTau3_standard / fTTau2_standard);
     fTTau21_standard = (abs(fTTau1_standard) < 1e-4 ? -10 : fTTau2_standard / fTTau1_standard);
 
