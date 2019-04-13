@@ -98,11 +98,14 @@ int main(int argc, char* argv[]){
 
     cout << ss.str() << endl;
     pythia8b->readString(ss.str());
+    cout << tunePPin.str() << endl;
     pythia8b->readString(tunePPin.str());
+    cout << colorModeIn.str() << endl;
     pythia8b->readString(colorModeIn.str());
     if (colorMode == 1) {
         std::stringstream remnantModeIn; remnantModeIn << "BeamRemnants:remnantMode = 1";
-        pythia8.readString(remnantModeIn.str());
+        cout << remnantModeIn.str() << endl;
+        pythia8b->readString(remnantModeIn.str());
     }
 
     myexampleAnalysis * analysis1 = new myexampleAnalysis(pixels);
