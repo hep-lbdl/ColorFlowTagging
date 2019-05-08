@@ -12,7 +12,7 @@ setup_ROOT() {
 
 setup_fastjet() {
     export FASTJETLOCATION=/global/projecta/projectdirs/atlas/bnachman/code/fastjet-install/
-    export LD_LIBRARY_PATH=/global/projecta/projectdirs/atlas/bnachman/code/fastjet-install/lib/:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH=${FASTJETLOCATION}lib/:$LD_LIBRARY_PATH
 }
 
 setup_boost() {
