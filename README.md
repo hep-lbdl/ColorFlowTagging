@@ -10,8 +10,10 @@ The state-of-the-art colorflow tagging observable is jet pull (Phys.Rev.Lett.105
 Can we do (much) better than that?  What is there to learn?
 
 ## Event Generation
-
-1. The first step is to generate .lhe events with the Higgs boson decay products. 
+For more in depth explanation of each step look into each directory specifically.  
+The overview is as follows
+1. The first step is to generate .lhe events with the Higgs boson decay products.  
+    This step is yet to fully added into the framework.
 
     This is then fed to Pythia in (2).  There is a script in EventGen called HiggsGun.C.
     This generates both the signal ("singlet") and background ("octet") configurations.
