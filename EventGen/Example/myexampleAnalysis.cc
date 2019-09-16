@@ -249,10 +249,11 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     vector<fastjet::PseudoJet> considered_jets_nopix_charged = fastjet::sorted_by_pt(
         csLargeR_nopix_charged.inclusive_jets(10.0));
 
+    fastjet::PseudoJet leading_jet_nopix_charged;
     if (trim) {
-        fastjet::PseudoJet leading_jet_nopix_charged = considered_jets_nopix_charged[0];
+        leading_jet_nopix_charged = considered_jets_nopix_charged[0];
     } else {
-        fastjet::PseudoJet leading_jet_nopix_charged = trimmer(considered_jets_nopix_charged[0]);
+        leading_jet_nopix_charged = trimmer(considered_jets_nopix_charged[0]);
     }
 
     fTLeadingEta_nopix_charged = leading_jet_nopix_charged.eta();
