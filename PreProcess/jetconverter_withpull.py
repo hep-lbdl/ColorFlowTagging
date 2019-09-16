@@ -308,7 +308,7 @@ if __name__ == '__main__':
                     ROOTfile = None
                     tree_standard = None
                     tree_charged = None
-	    CURRENT_CHUNK += 1
+            CURRENT_CHUNK += 1
         except KeyboardInterrupt:
             logger.info('Skipping file {}'.format(fname))
         except AttributeError:

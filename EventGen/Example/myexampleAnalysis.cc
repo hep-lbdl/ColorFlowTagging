@@ -146,7 +146,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
 
     // reset branches
     ResetBranches();
-    
+
     // new event-----------------------
     fTEventNumber = ievt;
     std::vector <fastjet::PseudoJet> particlesForJets_standard;
@@ -158,7 +158,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
 
     detector_standard->Reset();
     detector_charged->Reset();
-    
+
     TLorentzVector z1 = TLorentzVector();
     TLorentzVector z2 =TLorentzVector();
 
@@ -169,7 +169,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
         if (pythia8->event[ip].id()==-14) z1.SetPxPyPzE(pythia8->event[ip].px(),pythia8->event[ip].py(),pythia8->event[ip].pz(),pythia8->event[ip].e());
 
         fastjet::PseudoJet p(pythia8->event[ip].px(),
-                             pythia8->event[ip].py(), 
+                             pythia8->event[ip].py(),
                              pythia8->event[ip].pz(),
                              pythia8->event[ip].e());
 
@@ -187,12 +187,12 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
         int phibin = detector_standard->GetYaxis()->FindBin(p.phi());
 
         // do bin += value in the associated detector bin
-        detector_standard->SetBinContent(ybin, phibin, 
+        detector_standard->SetBinContent(ybin, phibin,
             detector_standard->GetBinContent(ybin, phibin) + p.e());
-	
+
         fastjet::PseudoJet p_nopix(p.px(),p.py(),p.pz(),p.e());
 	    particlesForJets_nopixel_standard.push_back(p_nopix);
-        
+
         if (pythia8->event[ip].isCharged()) {
             int ybin = detector_charged->GetXaxis()->FindBin(p.rapidity());
             int phibin = detector_charged->GetYaxis()->FindBin(p.phi());
@@ -202,17 +202,17 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
 
             particlesForJets_nopixel_charged.push_back(p_nopix);
         }
-
-
     }
-    // end particle loop -----------------------------------------------  
+    // end particle loop -----------------------------------------------
 
     // Calculate the nopixalated leading standard jet (to go to the cutoff as fast as possible).
     fastjet::JetDefinition *m_jet_def = new fastjet::JetDefinition(
         fastjet::antikt_algorithm, 1.);
 
+    // Trimming
     fastjet::Filter trimmer(fastjet::JetDefinition(fastjet::kt_algorithm, 0.3),
         fastjet::SelectorPtFractionMin(0.05));
+
 
     fastjet::ClusterSequence csLargeR_nopix_standard(particlesForJets_nopixel_standard, *m_jet_def);
 
