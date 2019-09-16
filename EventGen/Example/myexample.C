@@ -58,6 +58,7 @@ int main(int argc, char* argv[]){
     int pileup =0; //number of extra collisions that happen on top of the main one.  For now, set this to 0.
     float pTmin, pTmax, etamax, massmin, massmax;
     int colorMode, tunePP;
+    bool trim;
 
     po::options_description desc("Allowed options");
     desc.add_options()
@@ -74,6 +75,7 @@ int main(int argc, char* argv[]){
       ("massMax", po::value<float>(&massmax)->default_value(150), "Upper bound of cut on mass of leading jet")
       ("colorMode", po::value<int>(&colorMode)->default_value(0), "Type of model used for colour reconnection by pythia8.")
       ("tunePP", po::value<int>(&tunePP)->default_value(14), "Choice of tune to pp/ppbar data used by pythia8.")
+      ("trim", po::value<bool>(&trim)->default_value(false), "Whether to apply trimming or not")
       ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -132,7 +134,7 @@ int main(int argc, char* argv[]){
     cout << "running on " << nEvents << " events " << endl;
     for (Int_t iev = 0; iev < nEvents; iev++) {
         if (iev%100==0) cout << iev << " " << nEvents << endl;
-            analysis1->AnalyzeEvent(iev, pythia8b, pythia_MB, pileup, pixels, image_range, pTmin, pTmax, etamax, massmin, massmax);
+            analysis1->AnalyzeEvent(iev, pythia8b, pythia_MB, pileup, pixels, image_range, pTmin, pTmax, etamax, massmin, massmax, trim);
     }
     analysis1->End();
     pythia8b->stat();

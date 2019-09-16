@@ -135,7 +135,7 @@ void myexampleAnalysis::End()
 
 // Analyze
 void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8::Pythia* pythia_MB, int NPV,
-    int pixels, float range, float ptjMin, float ptjMax, float etaMax, float massMin, float massMax)
+    int pixels, float range, float ptjMin, float ptjMax, float etaMax, float massMin, float massMax, bool trim)
 {
 
     if(fDebug) cout << "myexampleAnalysis::AnalyzeEvent Begin " << endl;
@@ -234,6 +234,14 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
         return;
     }
 
+    if (trim) {
+        leading_jet_nopix_standard = considered_jets_nopix_standard[0];
+        fTLeadingEta_nopix_standard = leading_jet_nopix_standard.eta();
+        fTLeadingPt_nopix_standard = leading_jet_nopix_standard.perp();
+        fTLeadingM_nopix_standard = leading_jet_nopix_standard.m();
+    }
+
+
     // Repeat the above for charged, without cutoff.
     fTLeadingPhi_nopix_standard = leading_jet_nopix_standard.phi();
 
@@ -241,8 +249,11 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     vector<fastjet::PseudoJet> considered_jets_nopix_charged = fastjet::sorted_by_pt(
         csLargeR_nopix_charged.inclusive_jets(10.0));
 
-    fastjet::PseudoJet leading_jet_nopix_charged = trimmer(considered_jets_nopix_charged[0]);
-
+    if (trim) {
+        fastjet::PseudoJet leading_jet_nopix_charged = considered_jets_nopix_charged[0];
+    } else {
+        fastjet::PseudoJet leading_jet_nopix_charged = trimmer(considered_jets_nopix_charged[0]);
+    }
 
     fTLeadingEta_nopix_charged = leading_jet_nopix_charged.eta();
     fTLeadingPt_nopix_charged = leading_jet_nopix_charged.perp();
