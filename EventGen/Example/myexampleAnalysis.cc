@@ -209,10 +209,10 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     // Calculate the nopixalated leading standard jet (to go to the cutoff as fast as possible).
     fastjet::JetDefinition *m_jet_def;
     if (cambridge) {
-        *m_jet_def = new fastjet::JetDefinition(
+        m_jet_def = new fastjet::JetDefinition(
                 fastjet::cambridge_algorithm, 1.);
     } else {
-        *m_jet_def = new fastjet::JetDefinition(
+        m_jet_def = new fastjet::JetDefinition(
                 fastjet::antikt_algorithm, 1.);
     }
 
