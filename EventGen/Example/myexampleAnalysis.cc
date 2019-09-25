@@ -135,7 +135,8 @@ void myexampleAnalysis::End()
 
 // Analyze
 void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8::Pythia* pythia_MB, int NPV,
-    int pixels, float range, float ptjMin, float ptjMax, float etaMax, float massMin, float massMax, bool untrim)
+    int pixels, float range, float ptjMin, float ptjMax, float etaMax, float massMin, float massMax,
+    bool untrim, bool cambridge)
 {
 
     if(fDebug) cout << "myexampleAnalysis::AnalyzeEvent Begin " << endl;
@@ -206,8 +207,14 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     // end particle loop -----------------------------------------------
 
     // Calculate the nopixalated leading standard jet (to go to the cutoff as fast as possible).
-    fastjet::JetDefinition *m_jet_def = new fastjet::JetDefinition(
-        fastjet::antikt_algorithm, 1.);
+    fastjet::JetDefinition *m_jet_def;
+    if (cambridge) {
+        *m_jet_def = new fastjet::JetDefinition(
+                fastjet::cambridge_algorithm, 1.);
+    } else {
+        *m_jet_def = new fastjet::JetDefinition(
+                fastjet::antikt_algorithm, 1.);
+    }
 
     // Trimming
     fastjet::Filter trimmer(fastjet::JetDefinition(fastjet::kt_algorithm, 0.3),

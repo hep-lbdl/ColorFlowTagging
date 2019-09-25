@@ -59,6 +59,7 @@ int main(int argc, char* argv[]){
     float pTmin, pTmax, etamax, massmin, massmax;
     int colorMode, tunePP;
     bool untrim;
+    bool cambridge;
 
     po::options_description desc("Allowed options");
     desc.add_options()
@@ -76,6 +77,7 @@ int main(int argc, char* argv[]){
       ("colorMode", po::value<int>(&colorMode)->default_value(0), "Type of model used for colour reconnection by pythia8.")
       ("tunePP", po::value<int>(&tunePP)->default_value(14), "Choice of tune to pp/ppbar data used by pythia8.")
       ("untrim", po::value<bool>(&untrim)->default_value(false), "Whether to apply trimming or not")
+      ("cambridge", po::value<bool>(&cambridge)->default_value(false), "Whether to use cambridge or antikt algorithm")
       ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -134,7 +136,7 @@ int main(int argc, char* argv[]){
     cout << "running on " << nEvents << " events " << endl;
     for (Int_t iev = 0; iev < nEvents; iev++) {
         if (iev%100==0) cout << iev << " " << nEvents << endl;
-            analysis1->AnalyzeEvent(iev, pythia8b, pythia_MB, pileup, pixels, image_range, pTmin, pTmax, etamax, massmin, massmax, untrim);
+            analysis1->AnalyzeEvent(iev, pythia8b, pythia_MB, pileup, pixels, image_range, pTmin, pTmax, etamax, massmin, massmax, untrim, cambridge);
     }
     analysis1->End();
     pythia8b->stat();
