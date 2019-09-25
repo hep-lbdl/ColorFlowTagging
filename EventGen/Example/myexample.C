@@ -75,7 +75,7 @@ int main(int argc, char* argv[]){
       ("massMax", po::value<float>(&massmax)->default_value(150), "Upper bound of cut on mass of leading jet")
       ("colorMode", po::value<int>(&colorMode)->default_value(0), "Type of model used for colour reconnection by pythia8.")
       ("tunePP", po::value<int>(&tunePP)->default_value(14), "Choice of tune to pp/ppbar data used by pythia8.")
-      ("untrim", po::value<bool>(&trim)->default_value(false), "Whether to apply trimming or not")
+      ("untrim", po::value<bool>(&untrim)->default_value(false), "Whether to apply trimming or not")
       ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
