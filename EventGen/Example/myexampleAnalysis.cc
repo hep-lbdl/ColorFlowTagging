@@ -242,7 +242,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
         fTLeadingM_nopix_standard = leading_jet_nopix_standard.m();
 
         // Cut condition for the untrimmed jets
-        if (fTIntensity_pT_standard < ptjMin) {
+        if (fTLeadingPt_nopix_standard < ptjMin) {
             return;
         }
     }
