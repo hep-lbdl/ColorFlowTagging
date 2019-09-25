@@ -135,7 +135,7 @@ void myexampleAnalysis::End()
 
 // Analyze
 void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8::Pythia* pythia_MB, int NPV,
-    int pixels, float range, float ptjMin, float ptjMax, float etaMax, float massMin, float massMax, bool trim)
+    int pixels, float range, float ptjMin, float ptjMax, float etaMax, float massMin, float massMax, bool untrim)
 {
 
     if(fDebug) cout << "myexampleAnalysis::AnalyzeEvent Begin " << endl;
@@ -226,7 +226,8 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     fTLeadingPt_nopix_standard = leading_jet_nopix_standard.perp();
     fTLeadingM_nopix_standard = leading_jet_nopix_standard.m();
 
-    if (!(fTLeadingPt_nopix_standard < ptjMax && fTLeadingPt_nopix_standard > ptjMin && 
+    // Cut condition for the trimmed jets
+    if (!untrim && !(fTLeadingPt_nopix_standard < ptjMax && fTLeadingPt_nopix_standard > ptjMin &&
             fTLeadingEta_nopix_standard < etaMax && fTLeadingM_nopix_standard > massMin && 
             fTLeadingM_nopix_standard < massMax)) {
         // One of the conditions did not pass.
@@ -234,13 +235,17 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
         return;
     }
 
-    if (trim) {
+    if (untrim) {
         leading_jet_nopix_standard = considered_jets_nopix_standard[0];
         fTLeadingEta_nopix_standard = leading_jet_nopix_standard.eta();
         fTLeadingPt_nopix_standard = leading_jet_nopix_standard.perp();
         fTLeadingM_nopix_standard = leading_jet_nopix_standard.m();
-    }
 
+        // Cut condition for the untrimmed jets
+        if (fTIntensity_pT_standard < ptjMin) {
+            return;
+        }
+    }
 
     // Repeat the above for charged, without cutoff.
     fTLeadingPhi_nopix_standard = leading_jet_nopix_standard.phi();
@@ -250,7 +255,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
         csLargeR_nopix_charged.inclusive_jets(10.0));
 
     fastjet::PseudoJet leading_jet_nopix_charged;
-    if (trim) {
+    if (untrim) {
         leading_jet_nopix_charged = considered_jets_nopix_charged[0];
     } else {
         leading_jet_nopix_charged = trimmer(considered_jets_nopix_charged[0]);
