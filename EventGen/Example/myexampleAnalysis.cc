@@ -240,6 +240,8 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
         // One of the conditions did not pass.
         // TODO: ADD GARBAGE COLLECTION/FREE MEMORY UP
         return;
+    } else if (untrim && !(fTLeadingM_nopix_standard > massMin && fTLeadingM_nopix_standard < massMax)) {
+        return;
     }
 
     if (untrim) {
