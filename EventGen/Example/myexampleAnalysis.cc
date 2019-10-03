@@ -23,6 +23,7 @@
 #include "fastjet/Selector.hh"
 #include "fastjet/ClusterSequenceArea.hh"
 #include "fastjet/ClusterSequenceActiveAreaExplicitGhosts.hh"
+#include "fastjet/contrib/EnergyCorrelator.hh"
 
 #include "Pythia8/Pythia.h"
 
@@ -33,6 +34,11 @@ using namespace fastjet;
 using namespace fastjet::contrib;
 
 typedef pair<double, double> point;
+
+
+typedef vector<double> Row; // One row of the matrix
+typedef vector<Row> Matrix; // Matrix: a vector of rows
+typedef vector<Matrix> Mat3d; // Matrix3D: a vector of Matrices
 
 double euclidean_distance(const point &x, const point &y)
 {
@@ -288,7 +294,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
                 fastjet::PseudoJet p(0., 0., 0., 0.);
 
                 //We measure E (not pT)!  And treat 'clusters' as massless.
-                p.reset_PtYPhiM(E/cosh(eta), eta, phi, 0.); 
+                p.reset_PtYPhiM(E/cosh(eta), eta, phi, 0.);
                 particlesForJets_standard.push_back(p);
             }
         }
@@ -313,36 +319,63 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     }
 
     fastjet::ClusterSequence csLargeR_standard(particlesForJets_standard, *m_jet_def);
-    
     fastjet::ClusterSequence csLargeR_charged(particlesForJets_charged, *m_jet_def);
 
     vector<fastjet::PseudoJet> considered_jets_standard = fastjet::sorted_by_pt(
 								       csLargeR_standard.inclusive_jets(10.0));
-    
+
     vector<fastjet::PseudoJet> considered_jets_charged = fastjet::sorted_by_pt(
 								       csLargeR_charged.inclusive_jets(10.0));
 
-    fastjet::PseudoJet leading_jet_standard = trimmer(considered_jets_standard[0]);
-    fastjet::PseudoJet leading_jet_charged = trimmer(considered_jets_charged[0]);
+    fastjet::PseudoJet leading_jet_standard;
+    fastjet::PseudoJet leading_jet_charged;
+    if (untrim) {
+        leading_jet_standard = considered_jets_standard[0];
+        leading_jet_charged = considered_jets_charged[0];
+    } else {
+        leading_jet_standard = trimmer(considered_jets_standard[0]);
+        leading_jet_charged = trimmer(considered_jets_charged[0]);
+    }
 
-
+    // Standard, Pixelated
+    vector<float> ec_standard = Corelators(considered_jets_standard, leading_jet_standard);
     fTLeadingEta_standard = leading_jet_standard.eta();
     fTLeadingM_standard = leading_jet_standard.m();
     fTLeadingPhi_standard = leading_jet_standard.phi();
     fTLeadingPt_standard = leading_jet_standard.perp();
+    ec1_standard = ec_standard[0];
+    ec2_standard = ec_standard[1];
+    ec3_standard = ec_standard[2];
+
+    // Standard, Not Pixelated
+    vector<float> ec_nopix_standard = Corelators(considered_jets_nopix_standard, leading_jet_nopix_standard);
     fTLeadingEta_nopix_standard = leading_jet_nopix_standard.eta();
     fTLeadingPhi_nopix_standard = leading_jet_nopix_standard.phi();
     fTLeadingPt_nopix_standard = leading_jet_nopix_standard.perp();
     fTLeadingM_nopix_standard = leading_jet_nopix_standard.m();
+    ec1_nopix_standard = ec_nopix_standard[0];
+    ec2_nopix_standard = ec_nopix_standard[1];
+    ec3_nopix_standard = ec_nopix_standard[2];
 
+    // Charged, Pixelated
+    vector<float> ec_charged = Corelators(considered_jets_charged, leading_jet_charged);
     fTLeadingEta_charged = leading_jet_charged.eta();
     fTLeadingM_charged = leading_jet_charged.m();
     fTLeadingPhi_charged = leading_jet_charged.phi();
     fTLeadingPt_charged = leading_jet_charged.perp();
+    ec1_charged = ec_charged[0];
+    ec2_charged = ec_charged[1];
+    ec3_charged = ec_charged[2];
+
+    // Charged, Not Pixelated
+    vector<float> ec_nopix_charged = Corelators(considered_jets_nopix_charged, leading_jet_nopix_charged);
     fTLeadingEta_nopix_charged = leading_jet_nopix_charged.eta();
     fTLeadingPhi_nopix_charged = leading_jet_nopix_charged.phi();
     fTLeadingPt_nopix_charged = leading_jet_nopix_charged.perp();
     fTLeadingM_nopix_charged = leading_jet_nopix_charged.m();
+    ec1_nopix_charged = ec_nopix_charged[0];
+    ec2_nopix_charged = ec_nopix_charged[1];
+    ec3_nopix_charged = ec_nopix_charged[2];
 
     vector<fastjet::PseudoJet> subjets_nopix_standard = leading_jet_nopix_standard.pieces();
     vector<fastjet::PseudoJet> subjets_nopix_charged = leading_jet_nopix_charged.pieces();
@@ -442,7 +475,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
       consts_image_standard[i].first = consts_image_standard[i].first-shiftjet_standard.eta();
       consts_image_standard[i].second = sorted_consts_standard[i].delta_phi_to(shiftjet_standard);
     }
-    
+
     //Quickly run PCA for the rotation.
     double xbar_standard = 0.;
     double ybar_standard = 0.;
@@ -571,7 +604,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
             Edn_charged+=E;
         }
     }
-    
+
     if (Edn_standard < Eup_standard){
         dir_x_standard = -dir_x_standard;
         dir_y_standard = -dir_y_standard;
@@ -589,7 +622,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     fTPCPhi_charged = dir_y_charged;
 
     //Step 2: Fill in the unrotated image
-    //-------------------------------------------------------------------------   
+    //-------------------------------------------------------------------------
     range = 1.25;
     TH2D* orig_im_standard = new TH2D("", "", pixels, -range, range, pixels, -range, range);
     TH2D* orig_im_charged = new TH2D("", "", pixels, -range, range, pixels, -range, range);
@@ -599,16 +632,14 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     {
       TLorentzVector hold = TLorentzVector();
       hold.SetPtEtaPhiM(sorted_consts_standard[i].perp(),consts_image_standard[i].first,consts_image_standard[i].second,0.);
-      
       orig_im_standard->Fill(consts_image_standard[i].first,consts_image_standard[i].second,hold.E());
     }
-     
+
     // TLorentzVector image_mass_charged = TLorentzVector();
     for (int i = 0; i < sorted_consts_charged.size(); i++)
     {
       TLorentzVector hold = TLorentzVector();
       hold.SetPtEtaPhiM(sorted_consts_charged[i].perp(),consts_image_charged[i].first,consts_image_charged[i].second,0.);
-      
       orig_im_charged->Fill(consts_image_charged[i].first,consts_image_charged[i].second,hold.E());
     }
 
@@ -696,7 +727,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
 // declare branches
 void myexampleAnalysis::DeclareBranches()
 {
-    // Event Standard Properties 
+    // Event Standard Properties
     tT_standard->Branch("NFilled", &fTNFilled_standard, "NFilled/I");
 
     tT_standard->Branch("Intensity", *&fTIntensity_standard, "Intensity[NFilled]/F");
@@ -730,7 +761,7 @@ void myexampleAnalysis::DeclareBranches()
 
     tT_standard->Branch("Tau32", &fTTau32_standard, "Tau32/F");
     tT_standard->Branch("Tau21", &fTTau21_standard, "Tau21/F");
-    
+
     tT_standard->Branch("Tau32_nopix", &fTTau32_nopix_standard, "Tau32_nopix/F");
     tT_standard->Branch("Tau21_nopix", &fTTau21_nopix_standard, "Tau21_nopix/F");
 
@@ -740,7 +771,15 @@ void myexampleAnalysis::DeclareBranches()
     tT_standard->Branch("pull1_nopix", &fTpull1_nopix_standard, "pull1_nopix/F");
     tT_standard->Branch("pull2_nopix", &fTpull2_nopix_standard, "pull2_nopix/F");
 
-    // Event Charged Properties 
+    tT_standard->Branch("ec_1", &ec1_standard, "ec_1/F");
+    tT_standard->Branch("ec_2", &ec2_standard, "ec_2/F");
+    tT_standard->Branch("ec_3", &ec3_standard, "ec_3/F");
+
+    tT_standard->Branch("ec_1_nopix", &ec1_nopix_standard, "ec_1_nopix/F");
+    tT_standard->Branch("ec_2_nopix", &ec2_nopix_standard, "ec_2_nopix/F");
+    tT_standard->Branch("ec_3_nopix", &ec3_nopix_standard, "ec_3_nopix/F");
+
+    // Event Charged Properties
     tT_charged->Branch("NFilled", &fTNFilled_charged, "NFilled/I");
 
     tT_charged->Branch("Intensity", *&fTIntensity_charged, "Intensity[NFilled]/F");
@@ -784,6 +823,14 @@ void myexampleAnalysis::DeclareBranches()
     tT_charged->Branch("pull1_nopix", &fTpull1_nopix_charged, "pull1_nopix/F");
     tT_charged->Branch("pull2_nopix", &fTpull2_nopix_charged, "pull2_nopix/F");
 
+    tT_charged->Branch("ec_1", &ec1_charged, "ec_1/F");
+    tT_charged->Branch("ec_2", &ec2_charged, "ec_2/F");
+    tT_charged->Branch("ec_3", &ec3_charged, "ec_3/F");
+
+    tT_charged->Branch("ec_1_nopix", &ec1_nopix_charged, "ec_1_nopix/F");
+    tT_charged->Branch("ec_2_nopix", &ec2_nopix_charged, "ec_2_nopix/F");
+    tT_charged->Branch("ec_3_nopix", &ec3_nopix_charged, "ec_3_nopix/F");
+
     return;
 }
 
@@ -797,7 +844,7 @@ void myexampleAnalysis::ResetBranches(){
     fTSubLeadingEta_standard = -999;
     fTPCPhi_standard = -999;
     fTPCEta_standard = -999;
-  
+
     fTTau32_standard = -999;
     fTTau21_standard = -999;
 
@@ -822,6 +869,14 @@ void myexampleAnalysis::ResetBranches(){
     fTLeadingPt_nopix_standard = -999;
     fTLeadingM_nopix_standard = -999;
 
+    ec1_standard = -999;
+    ec2_standard = -999;
+    ec3_standard = -999;
+
+    ec1_nopix_standard = -999;
+    ec2_nopix_standard = -999;
+    ec3_nopix_standard = -999;
+
     for (int iP=0; iP < MaxN; ++iP)
     {
         fTIntensity_standard[iP]= -999;
@@ -834,7 +889,7 @@ void myexampleAnalysis::ResetBranches(){
     fTSubLeadingEta_charged = -999;
     fTPCPhi_charged = -999;
     fTPCEta_charged = -999;
-    
+
     fTTau32_charged = -999;
     fTTau21_charged = -999;
 
@@ -859,9 +914,98 @@ void myexampleAnalysis::ResetBranches(){
     fTLeadingPt_nopix_charged = -999;
     fTLeadingM_nopix_charged = -999;
 
+    ec1_charged = -999;
+    ec2_charged = -999;
+    ec3_charged = -999;
+
+    ec1_nopix_charged = -999;
+    ec2_nopix_charged = -999;
+    ec3_nopix_charged = -999;
+
     for (int iP=0; iP < MaxN; ++iP)
     {
         fTIntensity_charged[iP]= -999;
         fTIntensity_pT_charged[iP]= -999;
     }
+}
+
+// Get Corelator vars
+vector<float> myexampleAnalysis::Corelators(const vector<PseudoJet> & input_particles,  PseudoJet & resonance) {
+    Mat3d MCorels = myexampleAnalysis::Ecorel(input_particles, resonance);
+
+    vector<float> result;
+    result.push_back(MCorels[0][5][1]);
+    result.push_back(MCorels[0][5][2]);
+    result.push_back(MCorels[0][5][3]);
+    return result;
+}
+
+// Kirtimaan's code
+//********************************************************************//
+//========For calculatng energy correlators
+//********************************************************************//
+Mat3d myexampleAnalysis::Ecorel( const vector<PseudoJet> & input_particles,  PseudoJet & resonance) {
+    JetAlgorithm algorithm = cambridge_algorithm;
+    double jet_rad = 1.0;
+    JetDefinition jetDef = JetDefinition(algorithm,jet_rad,E_scheme,Best);
+    ClusterSequence clust_seq(input_particles, jetDef);
+    vector<PseudoJet> antikt_jets  = sorted_by_pt(clust_seq.inclusive_jets());
+
+    //====== EnergyCorrelator ====================//
+    //======= various values of beta ==============//
+    vector<double> betalist;
+    betalist.push_back(0.1);
+    betalist.push_back(0.2);
+    betalist.push_back(0.5);
+    betalist.push_back(1.0);
+    betalist.push_back(1.5);
+    betalist.push_back(2.0);
+
+    //==== checking the two energy/angle modes=======//
+    vector<EnergyCorrelator::Measure> measurelist;
+    measurelist.push_back(EnergyCorrelator::pt_R);
+    measurelist.push_back(EnergyCorrelator::E_theta);
+    //measurelist.push_back(EnergyCorrelator::E_inv);
+
+    //========Store correlators==================//
+    Mat3d mat_corels(measurelist.size(), Matrix(betalist.size(), Row(5)));
+
+    //====Decalre objects on which correlator is run
+    PseudoJet myJet, myJeti;
+
+	double dR=9999.0;
+	for (int j = 0; j < antikt_jets.size(); j++) {
+        double dR2= resonance.delta_R(antikt_jets[j]);
+		if( dR2 < dR) {
+    		myJeti=antikt_jets[j]; dR= dR2;
+        }
+    }
+
+    fastjet::Filter trimmer(fastjet::JetDefinition(fastjet::kt_algorithm,0.3), fastjet::SelectorPtFractionMin(0.00));
+    PseudoJet trimmed = trimmer(myJeti);
+    myJet=trimmed;
+
+    cout<<"size of trimmed jets = "<< trimmed.pieces().size()<<endl;
+
+    vector<string> modename;
+    modename.push_back("pt_R");
+    modename.push_back("E_theta");
+
+    for (unsigned int M = 0; M < measurelist.size(); M++) {
+        for (unsigned int B = 0; B < betalist.size(); B++) {
+            double beta = betalist[B];
+
+            EnergyCorrelatorDoubleRatio C1(1,beta,measurelist[M]);
+            EnergyCorrelatorDoubleRatio C2(2,beta,measurelist[M]);
+            EnergyCorrelatorDoubleRatio C3(3,beta,measurelist[M]);
+
+            mat_corels[M][B][0]=beta;
+            mat_corels[M][B][1]=C1(myJet);
+            mat_corels[M][B][2]=C2(myJet);
+            mat_corels[M][B][3]=C3(myJet);
+            mat_corels[M][B][4]=0;
+        }
+    }
+
+	return mat_corels;
 }

@@ -15,7 +15,7 @@ myexample:  myexample.so myTools.so myexampleAnalysis.so
 	$(CXX) myexample.so myTools.so myexampleAnalysis.so -o $@.exe \
 	$(CXXFLAGS) -Wno-shadow  \
 	`root-config --glibs`  \
-	-L$(FASTJETLOCATION)/lib `$(FASTJETLOCATION)/bin/fastjet-config --libs --plugins ` -lNsubjettiness \
+	-L$(FASTJETLOCATION)/lib `$(FASTJETLOCATION)/bin/fastjet-config --libs --plugins ` -lNsubjettiness -lEnergyCorrelator \
 	-L$(PYTHIA8LOCATION)/lib -lpythia8 -ldl \
 	-L$(BOOSTLIBLOCATION) -lboost_program_options 
 

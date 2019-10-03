@@ -24,6 +24,10 @@
 using namespace std;
 using namespace fastjet;
 
+typedef vector<double> Row; // One row of the matrix
+typedef vector<Row> Matrix; // Matrix: a vector of rows
+typedef vector<Matrix> Mat3d; // Matrix3D: a vector of Matrices
+
 class myexampleAnalysis
 {
     public:
@@ -51,6 +55,8 @@ class myexampleAnalysis
         {
             fOutName = outname;
         }
+
+        vector<float> Corelators(const vector<PseudoJet> & input_particles, PseudoJet & resonance);
     private:
         int  ftest;
         int  fDebug;
@@ -89,7 +95,7 @@ class myexampleAnalysis
         float fTLeadingPhi_standard;
         float fTLeadingPt_standard;
         float fTLeadingM_standard;
-        
+
 	float fTLeadingEta_nopix_standard;
         float fTLeadingPhi_nopix_standard;
         float fTLeadingPt_nopix_standard;
@@ -102,7 +108,7 @@ class myexampleAnalysis
 
         float fTSubLeadingEta_standard;
         float fTSubLeadingPhi_standard;
-	
+
 	float fTPCEta_standard;
 	float fTPCPhi_standard;
 
@@ -120,6 +126,14 @@ class myexampleAnalysis
 	float fTTau21_nopix_standard;
 	float fTTau32_nopix_standard;
 
+        float ec1_standard;
+        float ec2_standard;
+        float ec3_standard;
+
+        float ec1_nopix_standard;
+        float ec2_nopix_standard;
+        float ec3_nopix_standard;
+
         float fTdeltaR_standard;
 
         float *fTIntensity_standard;
@@ -132,7 +146,7 @@ class myexampleAnalysis
         float fTLeadingPhi_charged;
         float fTLeadingPt_charged;
         float fTLeadingM_charged;
-        
+
 	float fTLeadingEta_nopix_charged;
         float fTLeadingPhi_nopix_charged;
         float fTLeadingPt_nopix_charged;
@@ -145,7 +159,7 @@ class myexampleAnalysis
 
         float fTSubLeadingEta_charged;
         float fTSubLeadingPhi_charged;
-	
+
 	float fTPCEta_charged;
 	float fTPCPhi_charged;
 
@@ -163,11 +177,20 @@ class myexampleAnalysis
 	float fTTau21_nopix_charged;
 	float fTTau32_nopix_charged;
 
+        float ec1_charged;
+        float ec2_charged;
+        float ec3_charged;
+
+        float ec1_nopix_charged;
+        float ec2_nopix_charged;
+        float ec3_nopix_charged;
+
         float fTdeltaR_charged;
 
         float *fTIntensity_charged;
 	float *fTIntensity_pT_charged;
+
+        Mat3d Ecorel(const vector<PseudoJet> & input_particles, PseudoJet & resonance);
 };
 
 #endif
-
