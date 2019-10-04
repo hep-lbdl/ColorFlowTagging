@@ -344,6 +344,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     fTLeadingPhi_standard = leading_jet_standard.phi();
     fTLeadingPt_standard = leading_jet_standard.perp();
     ec1_standard = ec_standard[0];
+    cout << "ec1 standard: " << ec1_standard << endl;
     ec2_standard = ec_standard[1];
     ec3_standard = ec_standard[2];
 
@@ -985,8 +986,6 @@ Mat3d myexampleAnalysis::Ecorel( const vector<PseudoJet> & input_particles,  Pse
     PseudoJet trimmed = trimmer(myJeti);
     myJet=trimmed;
 
-    cout<<"size of trimmed jets = "<< trimmed.pieces().size()<<endl;
-
     vector<string> modename;
     modename.push_back("pt_R");
     modename.push_back("E_theta");
@@ -1001,6 +1000,9 @@ Mat3d myexampleAnalysis::Ecorel( const vector<PseudoJet> & input_particles,  Pse
 
             mat_corels[M][B][0]=beta;
             mat_corels[M][B][1]=C1(myJet);
+            cout << "C1: " << C1(myJet) << endl;
+            cout << "C2: " << C2(myJet) << endl;
+            cout << "C3: " << C3(myJet) << endl;
             mat_corels[M][B][2]=C2(myJet);
             mat_corels[M][B][3]=C3(myJet);
             mat_corels[M][B][4]=0;
