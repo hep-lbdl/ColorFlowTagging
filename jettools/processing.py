@@ -85,9 +85,10 @@ def buffer_to_jet(entry, pix, tag = 0, side = 'r', max_entry = None, rotate = Tr
         * DeltaR
         * Tau32
         * Tau21
-        * Tau{n} for n = 1, 2, 3 
+        * Tau{n} for n = 1, 2, 3
         * pull1
         * pull2
+        * ec_{n} for n = 1, 2, 3
     """
 
     accessed = False
@@ -99,10 +100,10 @@ def buffer_to_jet(entry, pix, tag = 0, side = 'r', max_entry = None, rotate = Tr
     else:
         # return None
         e, p = (entry['SubLeadingEta'], entry['SubLeadingPhi'])
-    
-    
+
+
     if rotate:
-	
+
         angle = np.arctan2(p, e) + 2.0 * np.arctan(1.0)
         if (-np.sin(angle) * e + np.cos(angle) * p) > 0:
             angle += -4.0 * np.arctan(1.0)
@@ -110,22 +111,27 @@ def buffer_to_jet(entry, pix, tag = 0, side = 'r', max_entry = None, rotate = Tr
         image = flip_jet(rotate_jet(np.array(entry['Intensity']), -angle, pix, normalizer=4000.0), side) # change between (-angle <-> -4*np.arctan(1.0)) if testing
     else:
         image = flip_jet(rotate_jet(np.array(entry['Intensity']), 0.0, pix, normalizer=4000.0), side)
-    
+
     e_norm = np.linalg.norm(image)
     #e_norm = 1./4000.0
     # if accessed:
     #     plt.imshow((image / e_norm))
     #     plt.show()
     if normalize:
-    	return ((image / e_norm).astype('float32'), np.float32(tag), 
-		np.float32(entry['LeadingPt']), np.float32(entry['LeadingEta']), 
-		np.float32(entry['LeadingPhi']), np.float32(entry['LeadingM']), np.float32(entry['DeltaR']),
-		np.float32(entry['Tau32']), np.float32(entry['Tau21']), np.float32(entry['Tau1']), np.float32(entry['Tau2']), np.float32(entry['Tau3']), np.float32(entry['pull1']), np.float32(entry['pull2']))
+    	img = (image / e_norm).astype('float32')
     else:
-    	return ((image).astype('float32'), np.float32(tag), 
-		np.float32(entry['LeadingPt']), np.float32(entry['LeadingEta']), 
-		np.float32(entry['LeadingPhi']), np.float32(entry['LeadingM']), np.float32(entry['DeltaR']),
-		np.float32(entry['Tau32']), np.float32(entry['Tau21']), np.float32(entry['Tau1']), np.float32(entry['Tau2']), np.float32(entry['Tau3']), np.float32(entry['pull1']), np.float32(entry['pull2']))
+        img = (image).astype('float32')
+    return (
+        img,
+        np.float32(tag),
+        np.float32(entry['LeadingPt']), np.float32(entry['LeadingEta']),
+        np.float32(entry['LeadingPhi']), np.float32(entry['LeadingM']),
+        np.float32(entry['DeltaR']),
+        np.float32(entry['Tau32']), np.float32(entry['Tau21']),
+        np.float32(entry['Tau1']), np.float32(entry['Tau2']), np.float32(entry['Tau3']),
+        np.float32(entry['pull1']), np.float32(entry['pull2']),
+        np.float32(entry['ec_1']), np.float32(entry['ec_2']), np.float32(entry['ec_3'])
+    )
 
 def is_signal(f, matcher = 'wprime'):
     """

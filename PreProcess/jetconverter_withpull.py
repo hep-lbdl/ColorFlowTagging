@@ -163,6 +163,11 @@ if __name__ == '__main__':
         pull1 = FloatCol()
         pull2 = FloatCol()
 
+        # Energy Corelators
+        ec_1 = FloatCol()
+        ec_2 = FloatCol()
+        ec_3 = FloatCol()
+
         # standard vs charged
         s_vs_c_dR = FloatCol()
         # -- END BUFFER
@@ -264,6 +269,9 @@ if __name__ == '__main__':
                         tree_standard.tau_3 = buf_s[11]
                         tree_standard.pull1 = buf_s[12]
                         tree_standard.pull2 = buf_s[13]
+                        tree_standard.ec_1 = buf_s[14]
+                        tree_standard.ec_1 = buf_s[15]
+                        tree_standard.ec_1 = buf_s[16]
                         tree_standard.s_vs_c_dR = dR
 
                         tree_charged.image = buf_c[0].ravel()  # .astype('float32')
@@ -280,6 +288,9 @@ if __name__ == '__main__':
                         tree_charged.tau_3 = buf_c[11]
                         tree_charged.pull1 = buf_c[12]
                         tree_charged.pull2 = buf_c[13]
+                        tree_charged.ec_1 = buf_c[14]
+                        tree_charged.ec_1 = buf_c[15]
+                        tree_charged.ec_1 = buf_c[16]
                         tree_charged.s_vs_c_dR = dR
 
                     if savefile is not None:
@@ -319,13 +330,13 @@ if __name__ == '__main__':
         ROOTfile.close()
 
     if hdf5 is not None:
+        _buf_names = ['signal', 'jet_pt', 'jet_eta', 'jet_phi', 'jet_mass', 'jet_delta_R', 'tau_32', 'tau_21',
+                      'tau_1', 'tau_2', 'tau_3', 'pull1', 'pull2', 'ec_1', 'ec_2', 'ec_3', 'dR_standard_vs_charged']
         with h5py.File(hdf5 + '_standard.h5', mode='w') as hf:
             entries = np.array(entries_standard)
             del entries_standard
 
             t = hf.create_group('meta_variables')
-            _buf_names = ['signal', 'jet_pt', 'jet_eta', 'jet_phi', 'jet_mass', 'jet_delta_R', 'tau_32', 'tau_21', 
-                          'tau_1', 'tau_2', 'tau_3', 'pull1', 'pull2', 'dR_standard_vs_charged']
             for idx, meta in enumerate(_buf_names):
                 t.create_dataset(meta, data=entries[:, idx])
             del entries
@@ -335,8 +346,6 @@ if __name__ == '__main__':
         with h5py.File(hdf5 + '_charged.h5', mode='w') as hf:
             entries = np.array(entries_charged)
             t = hf.create_group('meta_variables')
-            _buf_names = ['signal', 'jet_pt', 'jet_eta', 'jet_phi', 'jet_mass', 'jet_delta_R', 'tau_32', 'tau_21',
-                          'tau_1', 'tau_2', 'tau_3', 'pull1', 'pull2', 'dR_standard_vs_charged']
             for idx, meta in enumerate(_buf_names):
                 t.create_dataset(meta, data=entries[:, idx])
             del entries
