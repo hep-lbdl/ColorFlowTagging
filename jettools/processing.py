@@ -58,7 +58,7 @@ def image_mass(image,pixels):
             pass
         pass
     return ImageMass.M()*4000
- 
+
 def angle_from_vec(v1, v2):
     # cosang = np.dot(v1, v2)
     cosang = v1
@@ -66,11 +66,11 @@ def angle_from_vec(v1, v2):
     return np.arctan2(sinang, cosang)
 
 
-def buffer_to_jet(entry, pix, tag = 0, side = 'r', max_entry = None, rotate = True, normalize=True):
+def buffer_to_jet(entry, pix, tag=0, side='r', max_entry=None, rotate=True, normalize=True, pixelated=True):
     """
-    Takes an *single* entry from an structured ndarray, i.e., X[i], 
-    and a tag = {0, 1} indicating if its a signal entry or not. 
-    The parameter 'side' indicates which side of the final 
+    Takes an *single* entry from an structured ndarray, i.e., X[i],
+    and a tag = {0, 1} indicating if its a signal entry or not.
+    The parameter 'side' indicates which side of the final
     jet image we want the highest energy.
 
     The `entry` must have the following fields (as produced by event-gen)
@@ -93,12 +93,9 @@ def buffer_to_jet(entry, pix, tag = 0, side = 'r', max_entry = None, rotate = Tr
 
     accessed = False
     if (entry['SubLeadingEta'] < -10) | (entry['SubLeadingPhi'] < -10):
-        # return None
         accessed = True
         e, p = (entry['PCEta'], entry['PCPhi'])
-        # e, p = (entry['SubLeadingEta'], entry['SubLeadingPhi'])
     else:
-        # return None
         e, p = (entry['SubLeadingEta'], entry['SubLeadingPhi'])
 
 
@@ -112,26 +109,36 @@ def buffer_to_jet(entry, pix, tag = 0, side = 'r', max_entry = None, rotate = Tr
     else:
         image = flip_jet(rotate_jet(np.array(entry['Intensity']), 0.0, pix, normalizer=4000.0), side)
 
-    e_norm = np.linalg.norm(image)
-    #e_norm = 1./4000.0
-    # if accessed:
-    #     plt.imshow((image / e_norm))
-    #     plt.show()
     if normalize:
+        e_norm = np.linalg.norm(image)
     	img = (image / e_norm).astype('float32')
     else:
         img = (image).astype('float32')
-    return (
-        img,
-        np.float32(tag),
-        np.float32(entry['LeadingPt']), np.float32(entry['LeadingEta']),
-        np.float32(entry['LeadingPhi']), np.float32(entry['LeadingM']),
-        np.float32(entry['DeltaR']),
-        np.float32(entry['Tau32']), np.float32(entry['Tau21']),
-        np.float32(entry['Tau1']), np.float32(entry['Tau2']), np.float32(entry['Tau3']),
-        np.float32(entry['pull1']), np.float32(entry['pull2']),
-        np.float32(entry['ec_1']), np.float32(entry['ec_2']), np.float32(entry['ec_3'])
-    )
+
+    if pixelated:
+        return (
+            img,
+            np.float32(tag),
+            np.float32(entry['LeadingPt']), np.float32(entry['LeadingEta']),
+            np.float32(entry['LeadingPhi']), np.float32(entry['LeadingM']),
+            np.float32(entry['DeltaR']),
+            np.float32(entry['Tau32']), np.float32(entry['Tau21']),
+            np.float32(entry['Tau1']), np.float32(entry['Tau2']), np.float32(entry['Tau3']),
+            np.float32(entry['pull1']), np.float32(entry['pull2']),
+            np.float32(entry['ec_1']), np.float32(entry['ec_2']), np.float32(entry['ec_3'])
+        )
+    else:
+        return (
+            img,
+            np.float32(tag),
+            np.float32(entry['LeadingPt_nopix']), np.float32(entry['LeadingEta_nopix']),
+            np.float32(entry['LeadingPhi_nopix']), np.float32(entry['LeadingM_nopix']),
+            np.float32(entry['DeltaR_nopix']),
+            np.float32(entry['Tau32_nopix']), np.float32(entry['Tau21_nopix']),
+            np.float32(entry['Tau1_nopix']), np.float32(entry['Tau2_nopix']), np.float32(entry['Tau3_nopix']),
+            np.float32(entry['pull1_nopix']), np.float32(entry['pull2_nopix']),
+            np.float32(entry['ec_1_nopix']), np.float32(entry['ec_2_nopix']), np.float32(entry['ec_3_nopix'])
+        )
 
 def is_signal(f, matcher = 'wprime'):
     """

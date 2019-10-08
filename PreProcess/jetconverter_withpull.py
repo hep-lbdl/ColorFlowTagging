@@ -81,6 +81,8 @@ if __name__ == '__main__':
 
     parser.add_argument('--norm', default=True, type=str, help='Whether to normalize the image or not')
 
+    parser.add_argument('--pixelated', default=True, type=str, help='Whether to use pixaleted variables or not')
+
     parser.add_argument('files', nargs='*', help='Files to pass in')
 
     args = parser.parse_args()
@@ -105,6 +107,7 @@ if __name__ == '__main__':
     eta_max = args.etaMax
     mass_min = args.massMin
     mass_max = args.massMax
+    pixelated = args.pixelated
 
     truth = ['1', 'True', 'true', 'y', 'Y', 'T', 't']
 
@@ -112,7 +115,7 @@ if __name__ == '__main__':
         apply_cuts = True
     else:
         apply_cuts = False
-    
+
     if args.rotate in truth:
         rotate = True
     else:
@@ -247,8 +250,8 @@ if __name__ == '__main__':
                        jet_c['LeadingPt'] < ptj_max) & (jet_c['LeadingM'] < mass_max) & (
                        jet_c['LeadingM'] > mass_min))) or not apply_cuts:
 
-                    buf_c = list(buffer_to_jet(jet_c, args.pixelSize, tag, max_entry=100000, rotate=rotate, normalize=normalize))
-                    buf_s = list(buffer_to_jet(jet_s, args.pixelSize, tag, max_entry=100000, rotate=rotate, normalize=normalize))
+                    buf_c = list(buffer_to_jet(jet_c, args.pixelSize, tag, max_entry=100000, rotate=rotate, normalize=normalize, pixelated=pixelated))
+                    buf_s = list(buffer_to_jet(jet_s, args.pixelSize, tag, max_entry=100000, rotate=rotate, normalize=normalize, pixelated=pixelated))
                     if buf_s is None or buf_c is None:
                         continue
                     buf_s[4] = change_angles(buf_s[4])
