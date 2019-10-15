@@ -56,7 +56,7 @@ class myexampleAnalysis
             fOutName = outname;
         }
 
-        vector<float> Corelators(const vector<PseudoJet> & input_particles, PseudoJet & resonance);
+        vector<float> Corelators(const vector<PseudoJet> & input_particles, PseudoJet & resonance, bool untrim);
     private:
         int  ftest;
         int  fDebug;
@@ -192,7 +192,7 @@ class myexampleAnalysis
         float *fTIntensity_charged;
 	float *fTIntensity_pT_charged;
 
-        Mat3d Ecorel(const vector<PseudoJet> & input_particles, PseudoJet & resonance);
+        Mat3d Ecorel(const vector<PseudoJet> & input_particles, PseudoJet & resonance, bool untrim);
 };
 
 #endif

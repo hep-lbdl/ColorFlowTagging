@@ -170,7 +170,6 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     TLorentzVector z2 =TLorentzVector();
 
     for (int ip=0; ip<pythia8->event.size(); ++ip){
-
         if (pythia8->event[ip].id()==14) z1.SetPxPyPzE(pythia8->event[ip].px(),pythia8->event[ip].py(),pythia8->event[ip].pz(),pythia8->event[ip].e());
         if (pythia8->event[ip].id()==-14) z1.SetPxPyPzE(pythia8->event[ip].px(),pythia8->event[ip].py(),pythia8->event[ip].pz(),pythia8->event[ip].e());
 
@@ -249,6 +248,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
         return;
     }
 
+    // Leading Jet nopix standard are back to untrimmed.
     if (untrim) {
         leading_jet_nopix_standard = considered_jets_nopix_standard[0];
         fTLeadingEta_nopix_standard = leading_jet_nopix_standard.eta();
@@ -337,18 +337,22 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     }
 
     // Standard, Pixelated
-    vector<float> ec_standard = Corelators(considered_jets_standard, leading_jet_standard);
+    cout << "Size of jets standard: " << considered_jets_standard.size() << endl;
+    cout << "Size of jets charged: " << considered_jets_charged.size() << endl;
+    cout << "Size of jets nopix standard: " << considered_jets_nopix_standard.size() << endl;
+    cout << "Size of jets nopix charged: " << considered_jets_nopix_charged.size() << endl;
+
+    vector<float> ec_standard = Corelators(particlesForJets_standard, leading_jet_standard, untrim);
     fTLeadingEta_standard = leading_jet_standard.eta();
     fTLeadingM_standard = leading_jet_standard.m();
     fTLeadingPhi_standard = leading_jet_standard.phi();
     fTLeadingPt_standard = leading_jet_standard.perp();
     ec1_standard = ec_standard[0];
-    cout << "ec1 standard: " << ec1_standard << endl;
     ec2_standard = ec_standard[1];
     ec3_standard = ec_standard[2];
 
     // Standard, Not Pixelated
-    vector<float> ec_nopix_standard = Corelators(considered_jets_nopix_standard, leading_jet_nopix_standard);
+    vector<float> ec_nopix_standard = Corelators(particlesForJets_nopixel_standard, leading_jet_nopix_standard, untrim);
     fTLeadingEta_nopix_standard = leading_jet_nopix_standard.eta();
     fTLeadingPhi_nopix_standard = leading_jet_nopix_standard.phi();
     fTLeadingPt_nopix_standard = leading_jet_nopix_standard.perp();
@@ -358,7 +362,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     ec3_nopix_standard = ec_nopix_standard[2];
 
     // Charged, Pixelated
-    vector<float> ec_charged = Corelators(considered_jets_charged, leading_jet_charged);
+    vector<float> ec_charged = Corelators(particlesForJets_charged, leading_jet_charged, untrim);
     fTLeadingEta_charged = leading_jet_charged.eta();
     fTLeadingM_charged = leading_jet_charged.m();
     fTLeadingPhi_charged = leading_jet_charged.phi();
@@ -368,7 +372,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     ec3_charged = ec_charged[2];
 
     // Charged, Not Pixelated
-    vector<float> ec_nopix_charged = Corelators(considered_jets_nopix_charged, leading_jet_nopix_charged);
+    vector<float> ec_nopix_charged = Corelators(particlesForJets_nopixel_standard, leading_jet_nopix_charged, untrim);
     fTLeadingEta_nopix_charged = leading_jet_nopix_charged.eta();
     fTLeadingPhi_nopix_charged = leading_jet_nopix_charged.phi();
     fTLeadingPt_nopix_charged = leading_jet_nopix_charged.perp();
@@ -930,8 +934,8 @@ void myexampleAnalysis::ResetBranches(){
 }
 
 // Get Corelator vars
-vector<float> myexampleAnalysis::Corelators(const vector<PseudoJet> & input_particles,  PseudoJet & resonance) {
-    Mat3d MCorels = myexampleAnalysis::Ecorel(input_particles, resonance);
+vector<float> myexampleAnalysis::Corelators(const vector<PseudoJet> & input_particles,  PseudoJet & resonance, bool untrim) {
+    Mat3d MCorels = myexampleAnalysis::Ecorel(input_particles, resonance, untrim);
 
     vector<float> result;
     result.push_back(MCorels[0][5][1]);
@@ -969,25 +973,18 @@ bool myexampleAnalysis::isjetc( const Pythia8::Particle* p ) {
 
 // Kirtimaan's code
 //********************************************************************//
-//========For calculatng energy correlators
+//========For calculating energy corelators
 //********************************************************************//
-Mat3d myexampleAnalysis::Ecorel( const vector<PseudoJet> & input_particles,  PseudoJet & resonance) {
+Mat3d myexampleAnalysis::Ecorel( const vector<PseudoJet> & input_particles,  PseudoJet & resonance, bool untrim) {
     JetAlgorithm algorithm = cambridge_algorithm;
     double jet_rad = 1.0;
+    vector<PseudoJet> antikt_jets;
     JetDefinition jetDef = JetDefinition(algorithm,jet_rad,E_scheme,Best);
     ClusterSequence clust_seq(input_particles, jetDef);
-    vector<PseudoJet> antikt_jets  = sorted_by_pt(clust_seq.inclusive_jets());
+    antikt_jets = sorted_by_pt(clust_seq.inclusive_jets());
 
-    // cout << "Resonance px: " << resonance.px();
-    // cout << " py: " << resonance.py();
-    // cout << " pz: " << resonance.pz();
-    // cout << " e: " << resonance.e();
-    // cout << " size of constituents: " << sizeof(resonance.constituents());
-    // cout << "\n";
-    // cout << "Size of input particles: " << sizeof(input_particles) << "\n";
-    // cout << "input resonance: " << input_particles;
-    //====== EnergyCorrelator ====================//
-    //======= various values of beta ==============//
+    // EnergyCorrelator
+    // Various values of beta
     vector<double> betalist;
     betalist.push_back(0.1);
     betalist.push_back(0.2);
@@ -996,16 +993,15 @@ Mat3d myexampleAnalysis::Ecorel( const vector<PseudoJet> & input_particles,  Pse
     betalist.push_back(1.5);
     betalist.push_back(2.0);
 
-    //==== checking the two energy/angle modes=======//
+    // Checking the two energy/angle modes
     vector<EnergyCorrelator::Measure> measurelist;
     measurelist.push_back(EnergyCorrelator::pt_R);
     measurelist.push_back(EnergyCorrelator::E_theta);
-    //measurelist.push_back(EnergyCorrelator::E_inv);
 
-    //========Store correlators==================//
+    // Store corelators
     Mat3d mat_corels(measurelist.size(), Matrix(betalist.size(), Row(5)));
 
-    //====Decalre objects on which correlator is run
+    // Declare objects on which correlator is run
     PseudoJet myJet, myJeti;
 
 	double dR=9999.0;
@@ -1016,9 +1012,13 @@ Mat3d myexampleAnalysis::Ecorel( const vector<PseudoJet> & input_particles,  Pse
         }
     }
 
-    fastjet::Filter trimmer(fastjet::JetDefinition(fastjet::kt_algorithm,0.3), fastjet::SelectorPtFractionMin(0.00));
-    PseudoJet trimmed = trimmer(myJeti);
-    myJet=trimmed;
+    if (untrim) {
+        myJet = myJeti;
+    } else {
+        fastjet::Filter trimmer(fastjet::JetDefinition(fastjet::kt_algorithm,0.3), fastjet::SelectorPtFractionMin(0.00));
+        PseudoJet trimmed = trimmer(myJeti);
+        myJet=trimmed;
+    }
 
     cout << "My Jet px: " << myJet.px();
     cout << " py: " << myJet.py();
@@ -1035,15 +1035,12 @@ Mat3d myexampleAnalysis::Ecorel( const vector<PseudoJet> & input_particles,  Pse
         for (unsigned int B = 0; B < betalist.size(); B++) {
             double beta = betalist[B];
 
-            EnergyCorrelatorDoubleRatio C1(1,beta,measurelist[M]);
-            EnergyCorrelatorDoubleRatio C2(2,beta,measurelist[M]);
-            EnergyCorrelatorDoubleRatio C3(3,beta,measurelist[M]);
+            EnergyCorrelatorDoubleRatio C1(1, beta, measurelist[M]);
+            EnergyCorrelatorDoubleRatio C2(2, beta, measurelist[M]);
+            EnergyCorrelatorDoubleRatio C3(3, beta, measurelist[M]);
 
             mat_corels[M][B][0]=beta;
             mat_corels[M][B][1]=C1(myJet);
-            // cout << "C1: " << C1(myJet) << endl;
-            // cout << "C2: " << C2(myJet) << endl;
-            // cout << "C3: " << C3(myJet) << endl;
             mat_corels[M][B][2]=C2(myJet);
             mat_corels[M][B][3]=C3(myJet);
             mat_corels[M][B][4]=0;
