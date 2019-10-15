@@ -14,7 +14,7 @@
 #include "TParticle.h"
 #include "TDatabasePDG.h"
 
-#include "fastjet/PseudoJet.hh"  
+#include "fastjet/PseudoJet.hh"
 #include "fastjet/ClusterSequence.hh"
 #include "fastjet/Selector.hh"
 
@@ -33,10 +33,10 @@ using std::map;
 using namespace std;
 namespace po = boost::program_options;
 
-int getSeed(int seed){                                                                                                                                               
-    if (seed > -1) return seed;                                                                                                                                      \
-    int timeSeed = time(NULL);                                                                                                                                       \
-    return abs(((timeSeed*181)*((getpid()-83)*359))%104729);                                                                                                         \
+int getSeed(int seed){
+    if (seed > -1) return seed;
+    int timeSeed = time(NULL);
+    return abs(((timeSeed*181)*((getpid()-83)*359))%104729);
 }
 
 int main(int argc, char* argv[]){
@@ -47,7 +47,7 @@ int main(int argc, char* argv[]){
     }
     cout << endl;
 
-    // arguments 
+    // Arguments
     int nEvents = 0;
     int fDebug  = 0;
     string outName = "test";
@@ -58,8 +58,7 @@ int main(int argc, char* argv[]){
     int pileup =0; //number of extra collisions that happen on top of the main one.  For now, set this to 0.
     float pTmin, pTmax, etamax, massmin, massmax;
     int colorMode, tunePP;
-    bool untrim;
-    bool cambridge;
+    bool untrim, cambridge, reproduce;
 
     po::options_description desc("Allowed options");
     desc.add_options()
@@ -78,6 +77,7 @@ int main(int argc, char* argv[]){
       ("tunePP", po::value<int>(&tunePP)->default_value(14), "Choice of tune to pp/ppbar data used by pythia8.")
       ("untrim", po::value<bool>(&untrim)->default_value(false), "Whether to apply trimming or not")
       ("cambridge", po::value<bool>(&cambridge)->default_value(false), "Whether to use cambridge or antikt algorithm")
+      ("reproduce", po::value<bool>(&reproduce)->default_value(false), "Whether to try to reproduce study results")
       ;
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -136,7 +136,11 @@ int main(int argc, char* argv[]){
     cout << "running on " << nEvents << " events " << endl;
     for (Int_t iev = 0; iev < nEvents; iev++) {
         if (iev%100==0) cout << iev << " " << nEvents << endl;
-            analysis1->AnalyzeEvent(iev, pythia8b, pythia_MB, pileup, pixels, image_range, pTmin, pTmax, etamax, massmin, massmax, untrim, cambridge);
+            analysis1->AnalyzeEvent(
+                iev, pythia8b, pythia_MB, pileup, pixels, image_range,
+                pTmin, pTmax, etamax, massmin, massmax,
+                untrim, cambridge, reproduce
+            );
     }
     analysis1->End();
     pythia8b->stat();
