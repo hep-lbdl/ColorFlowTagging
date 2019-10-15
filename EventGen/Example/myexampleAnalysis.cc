@@ -336,12 +336,6 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
         leading_jet_charged = trimmer(considered_jets_charged[0]);
     }
 
-    // Standard, Pixelated
-    cout << "Size of jets standard: " << considered_jets_standard.size() << endl;
-    cout << "Size of jets charged: " << considered_jets_charged.size() << endl;
-    cout << "Size of jets nopix standard: " << considered_jets_nopix_standard.size() << endl;
-    cout << "Size of jets nopix charged: " << considered_jets_nopix_charged.size() << endl;
-
     vector<float> ec_standard = Corelators(particlesForJets_standard, leading_jet_standard, untrim);
     fTLeadingEta_standard = leading_jet_standard.eta();
     fTLeadingM_standard = leading_jet_standard.m();
@@ -1019,13 +1013,6 @@ Mat3d myexampleAnalysis::Ecorel( const vector<PseudoJet> & input_particles,  Pse
         PseudoJet trimmed = trimmer(myJeti);
         myJet=trimmed;
     }
-
-    cout << "My Jet px: " << myJet.px();
-    cout << " py: " << myJet.py();
-    cout << " pz: " << myJet.pz();
-    cout << " e: " << myJet.e();
-    cout << " size of constituents: " << sizeof(myJet.constituents());
-    cout << "\n";
 
     vector<string> modename;
     modename.push_back("pt_R");
