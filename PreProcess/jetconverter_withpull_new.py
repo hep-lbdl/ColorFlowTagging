@@ -188,47 +188,83 @@ def main(files, hdf5, ptj_min, ptj_max, eta_max, mass_min, mass_max, pixelated, 
         'ec_1', 'ec_2', 'ec_3'
     ]
 
-    use_idx = len(files) > 1
+    standard_images = []
+    standard_meta_vars = []
+    num_standard = num_samples
+    charged_images = []
+    charged_meta_vars = []
+    num_charged = num_samples
 
     for i, fname in enumerate(files):
-        logger.info('({} of {}) working on file: {}'.format(i, len(files), fname))
+        logger.info('({} of {}) working on standard file: {}'.format(i, len(files), fname))
 
         try:
-            standard_images, standard_meta_vars = process_root_file(fname, 'StandardEventTree', logger, chunk, apply_cuts, ptj_min, ptj_max, eta_max, mass_min, mass_max, rotate, normalize, pixelated, pixelSize, num_samples)
+            standard_images_i, standard_meta_vars_i = process_root_file(fname, 'StandardEventTree', logger, chunk, apply_cuts, ptj_min, ptj_max, eta_max, mass_min, mass_max, rotate, normalize, pixelated, pixelSize, num_standard)
 
-            if use_idx:
-                standard_save_name = '{}_{}_standard.h5'.format(hdf5, i + 1)
-                charged_save_name = '{}_{}_charged.h5'.format(hdf5, i + 1)
-            else:
-                standard_save_name = '{}_standard.h5'.format(hdf5)
-                charged_save_name = '{}_charged.h5'.format(hdf5)
+            if len(standard_images_i) > num_standard:
+                standard_images_i = standard_images_i[:num_standard]
+                standard_meta_vars_i = standard_meta_vars_i[:num_standard]
 
-            print('Saving Standard File')
-            with h5py.File(standard_save_name, mode='w') as hf:
-                t = hf.create_group('meta_variables')
-                for idx, meta in enumerate(_buf_names):
-                    t.create_dataset(meta, data=standard_meta_vars[:, idx])
-                hf.create_dataset('images', data=standard_images)
-            print('Finished Saving Standard File')
+            standard_images.extend(standard_images_i)
+            standard_meta_vars.extend(standard_meta_vars_i)
 
-            del standard_images, standard_meta_vars
-
-            charged_images, charged_meta_vars = process_root_file(fname, 'ChargedEventTree', logger, chunk, apply_cuts, ptj_min, ptj_max, eta_max, mass_min, mass_max, rotate, normalize, pixelated, pixelSize, num_samples)
-
-            print('Saving Charged File')
-            with h5py.File(charged_save_name, mode='w') as hf:
-                t = hf.create_group('meta_variables')
-                for idx, meta in enumerate(_buf_names):
-                    t.create_dataset(meta, data=charged_meta_vars[:, idx])
-                hf.create_dataset('images', data=charged_images)
-            print('Finished Saving Charged File')
-
-            del charged_images, charged_meta_vars
+            num_standard -= len(standard_images_i)
+            if num_standard <= 0:
+                break
 
         except KeyboardInterrupt:
             logger.info('Skipping file {}'.format(fname))
         except AttributeError:
             logger.info('Skipping file {} for compatibility reasons'.format(fname))
+
+    print('Saving Standard File')
+    standard_save_name = '{}_standard.h5'.format(hdf5)
+    standard_images = np.array(standard_images)
+    standard_meta_vars = np.array(standard_meta_vars)
+    with h5py.File(standard_save_name, mode='w') as hf:
+        t = hf.create_group('meta_variables')
+        for idx, meta in enumerate(_buf_names):
+            t.create_dataset(meta, data=standard_meta_vars[:, idx])
+        hf.create_dataset('images', data=standard_images)
+    print('Finished Saving Standard File')
+
+    del standard_images, standard_meta_vars
+
+    for i, fname in enumerate(files):
+        logger.info('({} of {}) working on charged file: {}'.format(i, len(files), fname))
+        try:
+            charged_images_i, charged_meta_vars_i = process_root_file(fname, 'ChargedEventTree', logger, chunk, apply_cuts, ptj_min, ptj_max, eta_max, mass_min, mass_max, rotate, normalize, pixelated, pixelSize, num_charged)
+
+            if len(charged_images_i) > num_charged:
+                charged_images_i = charged_images_i[:num_charged]
+                charged_meta_vars_i = charged_meta_vars_i[:num_charged]
+
+            charged_images.extend(charged_images_i)
+            charged_meta_vars.extend(charged_meta_vars_i)
+
+            num_charged -= len(charged_images_i)
+            if num_charged <= 0:
+                break
+
+        except KeyboardInterrupt:
+            logger.info('Skipping file {}'.format(fname))
+        except AttributeError:
+            logger.info('Skipping file {} for compatibility reasons'.format(fname))
+
+    print('Saving Charged File')
+    charged_save_name = '{}_charged.h5'.format(hdf5)
+    charged_images = np.array(charged_images)
+    charged_meta_vars = np.array(charged_meta_vars)
+    with h5py.File(charged_save_name, mode='w') as hf:
+        t = hf.create_group('meta_variables')
+        for idx, meta in enumerate(_buf_names):
+            t.create_dataset(meta, data=charged_meta_vars[:, idx])
+        hf.create_dataset('images', data=charged_images)
+    print('Finished Saving Charged File')
+
+    del charged_images, charged_meta_vars
+
+
 
 if __name__ == "__main__":
     args = parse_from_command_line()

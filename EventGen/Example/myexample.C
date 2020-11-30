@@ -135,12 +135,11 @@ int main(int argc, char* argv[]){
     analysis1->Begin();
     cout << "running on " << nEvents << " events " << endl;
     for (Int_t iev = 0; iev < nEvents; iev++) {
-        if (iev%100==0) cout << iev << " " << nEvents << endl;
-            analysis1->AnalyzeEvent(
-                iev, pythia8b, pythia_MB, pileup, pixels, image_range,
-                pTmin, pTmax, etamax, massmin, massmax,
-                untrim, cambridge, reproduce
-            );
+        analysis1->AnalyzeEvent(
+            iev, pythia8b, pythia_MB, pileup, pixels, image_range,
+            pTmin, pTmax, etamax, massmin, massmax,
+            untrim, cambridge, reproduce
+        );
     }
     analysis1->End();
     pythia8b->stat();
