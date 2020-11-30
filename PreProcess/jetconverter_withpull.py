@@ -171,8 +171,6 @@ if __name__ == '__main__':
         ec_2 = FloatCol()
         ec_3 = FloatCol()
 
-        # standard vs charged
-        s_vs_c_dR = FloatCol()
         # -- END BUFFER
 
 
@@ -213,16 +211,8 @@ if __name__ == '__main__':
         try:
             with root_open(fname) as f:
                 df_s = f.StandardEventTree.to_array()
-                df_c = f.ChargedEventTree.to_array()
-
-            assert df_s.shape[0] == df_c.shape[0]
-
-            n_entries = df_s.shape[0]
 
             pix_s = df_s[0]['Intensity'].shape[0]
-            pix_c = df_c[0]['Intensity'].shape[0]
-
-            assert pix_s == pix_c
 
             if not perfectsquare(pix_s):
                 raise ValueError('shape of image array must be square.')
@@ -237,26 +227,18 @@ if __name__ == '__main__':
             logger.info('Logging as {}'.format(tag))
 
             for jet_nb, jet_s in enumerate(df_s):
-                jet_c = df_c[jet_nb]
                 if jet_nb % 1000 == 0:
                     logger.info('processing jet {} of {} for file {}'.format(
-                        jet_nb, n_entries, fname
-                    )
-                    )
-                if (((np.abs(jet_s['LeadingEta']) < eta_max) & (jet_s['LeadingPt'] > ptj_min) & (
+                        jet_nb, len(df_s), fname
+                    ))
+                if ((np.abs(jet_s['LeadingEta']) < eta_max) & (jet_s['LeadingPt'] > ptj_min) & (
                        jet_s['LeadingPt'] < ptj_max) & (jet_s['LeadingM'] < mass_max) & (
-                       jet_s['LeadingM'] > mass_min)) and
-                    ((np.abs(jet_c['LeadingEta']) < eta_max) & (jet_c['LeadingPt'] > ptj_min) & (
-                       jet_c['LeadingPt'] < ptj_max) & (jet_c['LeadingM'] < mass_max) & (
-                       jet_c['LeadingM'] > mass_min))) or not apply_cuts:
+                       jet_s['LeadingM'] > mass_min)) or not apply_cuts:
 
-                    buf_c = list(buffer_to_jet(jet_c, args.pixelSize, tag, max_entry=100000, rotate=rotate, normalize=normalize, pixelated=pixelated))
                     buf_s = list(buffer_to_jet(jet_s, args.pixelSize, tag, max_entry=100000, rotate=rotate, normalize=normalize, pixelated=pixelated))
-                    if buf_s is None or buf_c is None:
+                    if buf_s is None:
                         continue
                     buf_s[4] = change_angles(buf_s[4])
-                    buf_c[4] = change_angles(buf_c[4])
-                    dR = np.hypot(buf_s[3] - buf_c[3], buf_s[4] - buf_s[4])
                     if args.dump:
                         tree_standard.image = buf_s[0].ravel()  # .astype('float32')
                         tree_standard.signal = buf_s[1]
@@ -273,10 +255,39 @@ if __name__ == '__main__':
                         tree_standard.pull1 = buf_s[12]
                         tree_standard.pull2 = buf_s[13]
                         tree_standard.ec_1 = buf_s[14]
-                        tree_standard.ec_1 = buf_s[15]
-                        tree_standard.ec_1 = buf_s[16]
-                        tree_standard.s_vs_c_dR = dR
+                        tree_standard.ec_2 = buf_s[15]
+                        tree_standard.ec_3 = buf_s[16]
 
+                    if savefile is not None:
+                        entries_standard.append(buf_s)
+                    if hdf5 is not None:
+                        img_entries_standard.append(buf_s[0])
+                        entries_standard.append(buf_s[1:])
+                    if args.dump:
+                        tree_standard.fill()
+
+            del df_s
+
+            # Process charged jets
+            with root_open(fname) as f:
+                df_c = f.ChargedEventTree.to_array()[:200000]
+            pix_c = df_c[0]['Intensity'].shape[0]
+
+            for jet_nb, jet_c in enumerate(df_c):
+                if jet_nb % 1000 == 0:
+                    logger.info('Processing charged jet {} of {} for file {}'.format(
+                        jet_nb, len(df_c), fname
+                    )
+                    )
+                if ((np.abs(jet_c['LeadingEta']) < eta_max) & (jet_c['LeadingPt'] > ptj_min) & (
+                       jet_c['LeadingPt'] < ptj_max) & (jet_c['LeadingM'] < mass_max) & (
+                       jet_c['LeadingM'] > mass_min)) or not apply_cuts:
+
+                    buf_c = list(buffer_to_jet(jet_c, args.pixelSize, tag, max_entry=100000, rotate=rotate, normalize=normalize, pixelated=pixelated))
+                    if buf_c is None:
+                        continue
+                    buf_c[4] = change_angles(buf_c[4])
+                    if args.dump:
                         tree_charged.image = buf_c[0].ravel()  # .astype('float32')
                         tree_charged.signal = buf_c[1]
                         tree_charged.jet_pt = buf_c[2]
@@ -292,22 +303,18 @@ if __name__ == '__main__':
                         tree_charged.pull1 = buf_c[12]
                         tree_charged.pull2 = buf_c[13]
                         tree_charged.ec_1 = buf_c[14]
-                        tree_charged.ec_1 = buf_c[15]
-                        tree_charged.ec_1 = buf_c[16]
-                        tree_charged.s_vs_c_dR = dR
+                        tree_charged.ec_2 = buf_c[15]
+                        tree_charged.ec_3 = buf_c[16]
 
                     if savefile is not None:
-                        entries_standard.append(buf_s + [dR])
-                        entries_charged.append(buf_c + [dR])
+                        entries_charged.append(buf_c)
                     if hdf5 is not None:
-                        img_entries_standard.append(buf_s[0])
-                        entries_standard.append(buf_s[1:] + [dR])
                         img_entries_charged.append(buf_c[0])
-                        entries_charged.append(buf_c[1:] + [dR])
+                        entries_charged.append(buf_c[1:])
                     if args.dump:
-                        tree_standard.fill()
                         tree_charged.fill()
 
+            del df_c
             # -- Check for chunking
             N_CHUNKED += 1
             # -- we've reached the max chunk size
@@ -334,7 +341,7 @@ if __name__ == '__main__':
 
     if hdf5 is not None:
         _buf_names = ['signal', 'jet_pt', 'jet_eta', 'jet_phi', 'jet_mass', 'jet_delta_R', 'tau_32', 'tau_21',
-                      'tau_1', 'tau_2', 'tau_3', 'pull1', 'pull2', 'ec_1', 'ec_2', 'ec_3', 'dR_standard_vs_charged']
+                      'tau_1', 'tau_2', 'tau_3', 'pull1', 'pull2', 'ec_1', 'ec_2', 'ec_3']
         with h5py.File(hdf5 + '_standard.h5', mode='w') as hf:
             entries = np.array(entries_standard)
             del entries_standard
@@ -372,13 +379,13 @@ if __name__ == '__main__':
                      ('tau_3', 'float32'),
                      ('pull1', 'float32'),
                      ('pull2', 'float32'),
-                     ('dR_standard_vs_charged', 'float32')]
+                     ]
 
         df_s = np.array(entries_standard, dtype=_bufdtype)
-        df_c = np.array(entries_standard, dtype=_bufdtype)
+        df_c = np.array(entries_charged, dtype=_bufdtype)
         logger.info('saving to file: {}'.format(savefile))
         np.save(savefile + '_standard', df_s)
-        np.save(savefile + '_charged', df_s)
+        np.save(savefile + '_charged', df_c)
 
         if plt_prefix != '':
             logger.info('plotting...')
