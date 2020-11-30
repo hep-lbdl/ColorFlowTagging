@@ -4,3 +4,14 @@
 *.out
 *.pyc
 *.root
+
+.vscode
+
+EventGen/Example/lhe
+PreProcess/compare
+PreProcess/tmp
+
+*test*
+*tmp*
+*tar*
+

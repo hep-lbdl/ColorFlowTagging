@@ -58,7 +58,7 @@ int main(int argc, char* argv[]){
     int pileup =0; //number of extra collisions that happen on top of the main one.  For now, set this to 0.
     float pTmin, pTmax, etamax, massmin, massmax;
     int colorMode, tunePP;
-    bool untrim, cambridge, reproduce;
+    bool cambridge, reproduce;
 
     po::options_description desc("Allowed options");
     desc.add_options()
@@ -75,7 +75,6 @@ int main(int argc, char* argv[]){
       ("massMax", po::value<float>(&massmax)->default_value(150), "Upper bound of cut on mass of leading jet")
       ("colorMode", po::value<int>(&colorMode)->default_value(0), "Type of model used for colour reconnection by pythia8.")
       ("tunePP", po::value<int>(&tunePP)->default_value(14), "Choice of tune to pp/ppbar data used by pythia8.")
-      ("untrim", po::value<bool>(&untrim)->default_value(false), "Whether to apply trimming or not")
       ("cambridge", po::value<bool>(&cambridge)->default_value(false), "Whether to use cambridge or antikt algorithm")
       ("reproduce", po::value<bool>(&reproduce)->default_value(false), "Whether to try to reproduce study results")
       ;
@@ -137,8 +136,7 @@ int main(int argc, char* argv[]){
     for (Int_t iev = 0; iev < nEvents; iev++) {
         analysis1->AnalyzeEvent(
             iev, pythia8b, pythia_MB, pileup, pixels, image_range,
-            pTmin, pTmax, etamax, massmin, massmax,
-            untrim, cambridge, reproduce
+            pTmin, pTmax, etamax, massmin, massmax, cambridge, reproduce
         );
     }
     analysis1->End();

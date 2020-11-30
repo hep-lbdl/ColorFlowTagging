@@ -1,6 +1,6 @@
 '''
 processing.py
-author: Luke de Oliveira, July 2015 
+author: Luke de Oliveira, July 2015
 
 Simple utilities for processing the junk that comes out of the ntuple event generation.
 '''
@@ -46,13 +46,13 @@ def image_mass(image,pixels):
     arange = 1.25;
     hold = TH2F("", "", pixels, -arange, arange, pixels, -arange, arange);
     counter = 0;
-    ImageMass = TLorentzVector(0.,0.,0.,0.); 
+    ImageMass = TLorentzVector(0.,0.,0.,0.);
     for i2 in range(1,hold.GetNbinsX()+1):
         for j2 in range(1,hold.GetNbinsY()+1):
             etaval = hold.GetXaxis().GetBinCenter(i2);
             phival = hold.GetYaxis().GetBinCenter(j2);
             ImageMass_hold = TLorentzVector();
-            ImageMass_hold.SetPtEtaPhiM(image[i2-1][j2-1],etaval,phival,0.);   
+            ImageMass_hold.SetPtEtaPhiM(image[i2-1][j2-1],etaval,phival,0.);
             ImageMass+=ImageMass_hold;
             counter+=1
             pass
@@ -111,7 +111,7 @@ def buffer_to_jet(entry, pix, tag=0, side='r', max_entry=None, rotate=True, norm
 
     if normalize:
         e_norm = np.linalg.norm(image)
-    	img = (image / e_norm).astype('float32')
+        img = (image / e_norm).astype('float32')
     else:
         img = (image).astype('float32')
 
@@ -142,8 +142,8 @@ def buffer_to_jet(entry, pix, tag=0, side='r', max_entry=None, rotate=True, norm
 
 def is_signal(f, matcher = 'wprime'):
     """
-    Takes as input a filename and a string to match. If the 
-    'matcher' string is found in the filename, the file is 
+    Takes as input a filename and a string to match. If the
+    'matcher' string is found in the filename, the file is
     taken to be a signal file.
     """
     key = matcher.lower().replace(' ', '').replace('-', '')

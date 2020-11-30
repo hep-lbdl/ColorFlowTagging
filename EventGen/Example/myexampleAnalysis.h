@@ -37,7 +37,7 @@ class myexampleAnalysis
         void Begin();
         void AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8::Pythia* pythia_MB,
                 int NPV, int pixels, float range, float ptjMin, float ptjMax, float etaMax, float massMin, float massMax,
-                bool untrim, bool cambridge, bool reproduce);
+                bool cambridge, bool reproduce);
 
 
 
@@ -56,7 +56,7 @@ class myexampleAnalysis
             fOutName = outname;
         }
 
-        vector<float> Corelators(const vector<PseudoJet> & input_particles, PseudoJet & resonance, bool untrim);
+        vector<float> Corelators(const vector<PseudoJet> & input_particles, PseudoJet & resonance);
     private:
         int  ftest;
         int  fDebug;
@@ -192,7 +192,7 @@ class myexampleAnalysis
         float *fTIntensity_charged;
 	float *fTIntensity_pT_charged;
 
-        Mat3d Ecorel(const vector<PseudoJet> & input_particles, PseudoJet & resonance, bool untrim);
+        Mat3d Ecorel(const vector<PseudoJet> & input_particles, PseudoJet & resonance);
 };
 
 #endif

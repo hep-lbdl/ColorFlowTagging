@@ -60,6 +60,27 @@ std::tuple<double, double> calculate_pull(vector<fastjet::PseudoJet> subjets, my
     }
 }
 
+class IsBSM {
+public:
+    bool operator()( const Pythia8::Particle* p ) {
+
+		int pid = p->id();
+		int BSMArray[5] ={5000021, 32};
+		bool isBSM = std::any_of(
+            std::begin(BSMArray), std::end(BSMArray), [&](int i)
+		    {
+			    return i == abs(pid);
+		    }
+        );
+
+		if (isBSM) {
+            return 1;
+        } else {
+    		return 0;
+        }
+    }
+};
+
 // Constructor
 myexampleAnalysis::myexampleAnalysis(int imagesize)
 {
@@ -142,7 +163,7 @@ void myexampleAnalysis::End()
 // Analyze
 void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8::Pythia* pythia_MB, int NPV,
     int pixels, float range, float ptjMin, float ptjMax, float etaMax, float massMin, float massMax,
-    bool untrim, bool cambridge, bool reproduce)
+    bool cambridge, bool reproduce)
 {
 
     if(fDebug) cout << "myexampleAnalysis::AnalyzeEvent Begin " << endl;
@@ -167,11 +188,16 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     detector_charged->Reset();
 
     TLorentzVector z1 = TLorentzVector();
-    TLorentzVector z2 =TLorentzVector();
+    TLorentzVector z2 = TLorentzVector();
+
+    IsBSM isbsm;
+    fastjet::PseudoJet bsmtruth;
 
     for (int ip=0; ip<pythia8->event.size(); ++ip){
         if (pythia8->event[ip].id()==14) z1.SetPxPyPzE(pythia8->event[ip].px(),pythia8->event[ip].py(),pythia8->event[ip].pz(),pythia8->event[ip].e());
         if (pythia8->event[ip].id()==-14) z1.SetPxPyPzE(pythia8->event[ip].px(),pythia8->event[ip].py(),pythia8->event[ip].pz(),pythia8->event[ip].e());
+        if (isbsm(&pythia8->event[ip])) {bsmtruth.reset(pythia8->event[ip].px(), pythia8->event[ip].py(), pythia8->event[ip].pz(), pythia8->event[ip].e());}
+
 
         fastjet::PseudoJet p(pythia8->event[ip].px(),
                              pythia8->event[ip].py(),
@@ -221,45 +247,33 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     }
 
     // Trimming
-    fastjet::Filter trimmer(fastjet::JetDefinition(fastjet::kt_algorithm, 0.3),
-        fastjet::SelectorPtFractionMin(0.05));
-
-
     fastjet::ClusterSequence csLargeR_nopix_standard(particlesForJets_nopixel_standard, *m_jet_def);
-
-    vector<fastjet::PseudoJet> considered_jets_nopix_standard = fastjet::sorted_by_pt(
-        csLargeR_nopix_standard.inclusive_jets(10.0));
+    vector<fastjet::PseudoJet> considered_jets_nopix_standard = fastjet::sorted_by_pt(csLargeR_nopix_standard.inclusive_jets(10.0));
 
 
-    fastjet::PseudoJet leading_jet_nopix_standard = trimmer(considered_jets_nopix_standard[0]);
-
-    fTLeadingEta_nopix_standard = leading_jet_nopix_standard.eta();
-    fTLeadingPt_nopix_standard = leading_jet_nopix_standard.perp();
-    fTLeadingM_nopix_standard = leading_jet_nopix_standard.m();
-
-    // Cut condition for the trimmed jets
-    if (!untrim && !(fTLeadingPt_nopix_standard < ptjMax && fTLeadingPt_nopix_standard > ptjMin &&
-            fTLeadingEta_nopix_standard < etaMax && fTLeadingM_nopix_standard > massMin && 
-            fTLeadingM_nopix_standard < massMax)) {
-        // One of the conditions did not pass.
-        // TODO: ADD GARBAGE COLLECTION/FREE MEMORY UP
-        return;
-    } else if (untrim && !(fTLeadingM_nopix_standard > massMin && fTLeadingM_nopix_standard < massMax)) {
-        return;
+    fastjet::PseudoJet leading_jet_nopix_standard;
+    if (considered_jets_nopix_standard.size()>1) { // This can be generalized to sort jets in delta_R,but that maybe overkill.
+		if (bsmtruth.delta_R(considered_jets_nopix_standard[0]) < bsmtruth.delta_R(considered_jets_nopix_standard[1])) {
+            leading_jet_nopix_standard = considered_jets_nopix_standard[0];
+		}
+		else {
+			leading_jet_nopix_standard = considered_jets_nopix_standard[1];
+		}
     }
-
-    // Leading Jet nopix standard are back to untrimmed.
-    if (untrim) {
+    else {
         leading_jet_nopix_standard = considered_jets_nopix_standard[0];
-        fTLeadingEta_nopix_standard = leading_jet_nopix_standard.eta();
-        fTLeadingPt_nopix_standard = leading_jet_nopix_standard.perp();
-        fTLeadingM_nopix_standard = leading_jet_nopix_standard.m();
-
-        // Cut condition for the untrimmed jets
-        if (fTLeadingPt_nopix_standard < ptjMin) {
-            return;
-        }
     }
+    if (bsmtruth.delta_R(leading_jet_nopix_standard) > 1.0) {  //Additional check to make sure jet matches truth level analysis.
+        return;
+    }
+
+    fastjet::Filter trimmer(fastjet::JetDefinition(fastjet::kt_algorithm, 0.3), fastjet::SelectorPtFractionMin(0.05));
+    PseudoJet resonance = trimmer(leading_jet_nopix_standard);
+
+
+    if (resonance.m() < massMin || resonance.m() > massMax) return;// Apply mass cut on jet
+    if (resonance.pt() < ptjMin || resonance.pt() > ptjMax) return; // Apply cut on pt of jet
+    if (fabs(resonance.eta()) > etaMax) return; // Apply cut on eta of jet
 
     // Repeat the above for charged, without cutoff.
     fTLeadingPhi_nopix_standard = leading_jet_nopix_standard.phi();
@@ -269,12 +283,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
         csLargeR_nopix_charged.inclusive_jets(10.0));
 
     fastjet::PseudoJet leading_jet_nopix_charged;
-    if (untrim) {
-        leading_jet_nopix_charged = considered_jets_nopix_charged[0];
-    } else {
-        leading_jet_nopix_charged = trimmer(considered_jets_nopix_charged[0]);
-    }
-
+    leading_jet_nopix_charged = considered_jets_nopix_charged[0];
     fTLeadingEta_nopix_charged = leading_jet_nopix_charged.eta();
     fTLeadingPt_nopix_charged = leading_jet_nopix_charged.perp();
     fTLeadingM_nopix_charged = leading_jet_nopix_charged.m();
@@ -311,7 +320,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
                 fastjet::PseudoJet p(0., 0., 0., 0.);
 
                 //We measure E (not pT)!  And treat 'clusters' as massless.
-                p.reset_PtYPhiM(E/cosh(eta), eta, phi, 0.); 
+                p.reset_PtYPhiM(E/cosh(eta), eta, phi, 0.);
                 particlesForJets_charged.push_back(p);
             }
         }
@@ -328,15 +337,10 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
 
     fastjet::PseudoJet leading_jet_standard;
     fastjet::PseudoJet leading_jet_charged;
-    if (untrim) {
-        leading_jet_standard = considered_jets_standard[0];
-        leading_jet_charged = considered_jets_charged[0];
-    } else {
-        leading_jet_standard = trimmer(considered_jets_standard[0]);
-        leading_jet_charged = trimmer(considered_jets_charged[0]);
-    }
+    leading_jet_standard = considered_jets_standard[0];
+    leading_jet_charged = considered_jets_charged[0];
 
-    vector<float> ec_standard = Corelators(particlesForJets_standard, leading_jet_standard, untrim);
+    vector<float> ec_standard = Corelators(particlesForJets_standard, leading_jet_standard);
     fTLeadingEta_standard = leading_jet_standard.eta();
     fTLeadingM_standard = leading_jet_standard.m();
     fTLeadingPhi_standard = leading_jet_standard.phi();
@@ -346,7 +350,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     ec3_standard = ec_standard[2];
 
     // Standard, Not Pixelated
-    vector<float> ec_nopix_standard = Corelators(particlesForJets_nopixel_standard, leading_jet_nopix_standard, untrim);
+    vector<float> ec_nopix_standard = Corelators(particlesForJets_nopixel_standard, leading_jet_nopix_standard);
     fTLeadingEta_nopix_standard = leading_jet_nopix_standard.eta();
     fTLeadingPhi_nopix_standard = leading_jet_nopix_standard.phi();
     fTLeadingPt_nopix_standard = leading_jet_nopix_standard.perp();
@@ -356,7 +360,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     ec3_nopix_standard = ec_nopix_standard[2];
 
     // Charged, Pixelated
-    vector<float> ec_charged = Corelators(particlesForJets_charged, leading_jet_charged, untrim);
+    vector<float> ec_charged = Corelators(particlesForJets_charged, leading_jet_charged);
     fTLeadingEta_charged = leading_jet_charged.eta();
     fTLeadingM_charged = leading_jet_charged.m();
     fTLeadingPhi_charged = leading_jet_charged.phi();
@@ -366,7 +370,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     ec3_charged = ec_charged[2];
 
     // Charged, Not Pixelated
-    vector<float> ec_nopix_charged = Corelators(particlesForJets_nopixel_standard, leading_jet_nopix_charged, untrim);
+    vector<float> ec_nopix_charged = Corelators(particlesForJets_nopixel_standard, leading_jet_nopix_charged);
     fTLeadingEta_nopix_charged = leading_jet_nopix_charged.eta();
     fTLeadingPhi_nopix_charged = leading_jet_nopix_charged.phi();
     fTLeadingPt_nopix_charged = leading_jet_nopix_charged.perp();
@@ -389,7 +393,6 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
 
     fTpull1_nopix_charged = -1;
     fTpull2_nopix_charged = -1;
-    int e = 911;
     try {
         std::tuple<double, double> no_pix_pulls_standard = calculate_pull(subjets_nopix_standard, tool);
         fTpull1_nopix_standard = get<0>(no_pix_pulls_standard);
@@ -550,24 +553,24 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
         xybar_charged+=x*y*E;
     }
 
-    double sigmax2_standard = x2bar_standard / n_standard - mux_standard*mux_standard;
-    double sigmay2_standard = y2bar_standard / n_standard - muy_standard*muy_standard;
-    double sigmaxy_standard = xybar_standard / n_standard - mux_standard*muy_standard;
-    double lamb_min_standard = 0.5* ( sigmax2_standard + sigmay2_standard - sqrt( (sigmax2_standard-sigmay2_standard)*(sigmax2_standard-sigmay2_standard) + 4*sigmaxy_standard*sigmaxy_standard) );
-    double lamb_max_standard = 0.5* ( sigmax2_standard + sigmay2_standard + sqrt( (sigmax2_standard-sigmay2_standard)*(sigmax2_standard-sigmay2_standard) + 4*sigmaxy_standard*sigmaxy_standard) );
+    double sigmax2_standard = x2bar_standard / n_standard - mux_standard * mux_standard;
+    double sigmay2_standard = y2bar_standard / n_standard - muy_standard * muy_standard;
+    double sigmaxy_standard = xybar_standard / n_standard - mux_standard * muy_standard;
+    double lamb_min_standard = 0.5 * (sigmax2_standard + sigmay2_standard - sqrt((sigmax2_standard - sigmay2_standard) * (sigmax2_standard - sigmay2_standard) + 4 * sigmaxy_standard * sigmaxy_standard));
+    double lamb_max_standard = 0.5 * (sigmax2_standard + sigmay2_standard + sqrt((sigmax2_standard - sigmay2_standard) * (sigmax2_standard - sigmay2_standard) + 4 * sigmaxy_standard * sigmaxy_standard));
 
-    double sigmax2_charged = x2bar_charged / n_charged - mux_charged*mux_charged;
-    double sigmay2_charged = y2bar_charged / n_charged - muy_charged*muy_charged;
-    double sigmaxy_charged = xybar_charged / n_charged - mux_charged*muy_charged;
-    double lamb_min_charged = 0.5* ( sigmax2_charged + sigmay2_charged - sqrt( (sigmax2_charged-sigmay2_charged)*(sigmax2_charged-sigmay2_charged) + 4*sigmaxy_charged*sigmaxy_charged) );
-    double lamb_max_charged = 0.5* ( sigmax2_charged + sigmay2_charged + sqrt( (sigmax2_charged-sigmay2_charged)*(sigmax2_charged-sigmay2_charged) + 4*sigmaxy_charged*sigmaxy_charged) );
+    double sigmax2_charged = x2bar_charged / n_charged - mux_charged * mux_charged;
+    double sigmay2_charged = y2bar_charged / n_charged - muy_charged * muy_charged;
+    double sigmaxy_charged = xybar_charged / n_charged - mux_charged * muy_charged;
+    double lamb_min_charged = 0.5 * (sigmax2_charged + sigmay2_charged - sqrt((sigmax2_charged - sigmay2_charged) * (sigmax2_charged - sigmay2_charged) + 4 * sigmaxy_charged * sigmaxy_charged));
+    double lamb_max_charged = 0.5 * (sigmax2_charged + sigmay2_charged + sqrt((sigmax2_charged - sigmay2_charged) * (sigmax2_charged - sigmay2_charged) + 4 * sigmaxy_charged * sigmaxy_charged));
 
 
-    double dir_x_standard = sigmax2_standard+sigmaxy_standard-lamb_min_standard;
-    double dir_y_standard = sigmay2_standard+sigmaxy_standard-lamb_min_standard;
+    double dir_x_standard = sigmax2_standard + sigmaxy_standard - lamb_min_standard;
+    double dir_y_standard = sigmay2_standard + sigmaxy_standard - lamb_min_standard;
 
-    double dir_x_charged = sigmax2_charged+sigmaxy_charged-lamb_min_charged;
-    double dir_y_charged = sigmay2_charged+sigmaxy_charged-lamb_min_charged;
+    double dir_x_charged = sigmax2_charged + sigmaxy_charged - lamb_min_charged;
+    double dir_y_charged = sigmay2_charged + sigmaxy_charged - lamb_min_charged;
 
     //The first PC is only defined up to a sign.  Let's have it point toward the side of the jet with the most energy.
 
@@ -582,11 +585,11 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
         double x = consts_image_standard[i].first - mux_standard;
         double y = consts_image_standard[i].second - muy_standard;
         double E = sorted_consts_standard[i].e();
-        double dotprod = dir_x_standard*x+dir_y_standard*y;
+        double dotprod = dir_x_standard * x + dir_y_standard * y;
         if (dotprod > 0) {
-            Eup_standard+=E;
+            Eup_standard += E;
         } else {
-            Edn_standard+=E;
+            Edn_standard += E;
         }
     }
 
@@ -595,11 +598,11 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
 	double x = consts_image_charged[i].first - mux_charged;
         double y = consts_image_charged[i].second - muy_charged;
         double E = sorted_consts_charged[i].e();
-        double dotprod = dir_x_charged*x+dir_y_charged*y;
+        double dotprod = dir_x_charged * x + dir_y_charged * y;
         if (dotprod > 0) {
-            Eup_charged+=E;
+            Eup_charged += E;
         } else {
-            Edn_charged+=E;
+            Edn_charged += E;
         }
     }
 
@@ -928,8 +931,8 @@ void myexampleAnalysis::ResetBranches(){
 }
 
 // Get Corelator vars
-vector<float> myexampleAnalysis::Corelators(const vector<PseudoJet> & input_particles,  PseudoJet & resonance, bool untrim) {
-    Mat3d MCorels = myexampleAnalysis::Ecorel(input_particles, resonance, untrim);
+vector<float> myexampleAnalysis::Corelators(const vector<PseudoJet> & input_particles,  PseudoJet & resonance) {
+    Mat3d MCorels = myexampleAnalysis::Ecorel(input_particles, resonance);
 
     vector<float> result;
     result.push_back(MCorels[0][5][1]);
@@ -969,7 +972,7 @@ bool myexampleAnalysis::isjetc( const Pythia8::Particle* p ) {
 //********************************************************************//
 //========For calculating energy corelators
 //********************************************************************//
-Mat3d myexampleAnalysis::Ecorel( const vector<PseudoJet> & input_particles,  PseudoJet & resonance, bool untrim) {
+Mat3d myexampleAnalysis::Ecorel( const vector<PseudoJet> & input_particles,  PseudoJet & resonance) {
     JetAlgorithm algorithm = cambridge_algorithm;
     double jet_rad = 1.0;
     vector<PseudoJet> antikt_jets;
@@ -1005,14 +1008,7 @@ Mat3d myexampleAnalysis::Ecorel( const vector<PseudoJet> & input_particles,  Pse
     		myJeti=antikt_jets[j]; dR= dR2;
         }
     }
-
-    if (untrim) {
-        myJet = myJeti;
-    } else {
-        fastjet::Filter trimmer(fastjet::JetDefinition(fastjet::kt_algorithm,0.3), fastjet::SelectorPtFractionMin(0.00));
-        PseudoJet trimmed = trimmer(myJeti);
-        myJet=trimmed;
-    }
+    myJet = myJeti;
 
     vector<string> modename;
     modename.push_back("pt_R");
