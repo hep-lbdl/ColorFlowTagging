@@ -65,7 +65,7 @@ public:
     bool operator()( const Pythia8::Particle* p ) {
 
 		int pid = p->id();
-		int BSMArray[5] ={5000021, 32};
+		int BSMArray[7] = {5000021, 32, 25, 39, 5000002, 5000020, 9000006};
 		bool isBSM = std::any_of(
             std::begin(BSMArray), std::end(BSMArray), [&](int i)
 		    {
