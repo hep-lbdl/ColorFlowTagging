@@ -132,13 +132,50 @@ int main(int argc, char* argv[]){
 
     analysis1->SetOutName(outName);
     analysis1->Begin();
+
+
+    int success;
+    int totalSuccess = 0;
+    int totalReject = 0;
+    int totalError = 0;
+    std::stringstream header;
+    std::stringstream succ;
+    std::stringstream rej;
+    std::stringstream err;
+    std::stringstream total;
+
     cout << "running on " << nEvents << " events " << endl;
     for (Int_t iev = 0; iev < nEvents; iev++) {
-        analysis1->AnalyzeEvent(
+        success = analysis1->AnalyzeEvent(
             iev, pythia8b, pythia_MB, pileup, pixels, image_range,
             pTmin, pTmax, etamax, massmin, massmax, cambridge, reproduce
         );
+        if (success == 1) {
+            totalSuccess++;
+        } else if (success == 0) {
+            totalReject++;
+        } else {
+            totalError++;
+        }
+
+        if (iev > 0 && iev % 10000 == 0) {
+            header.clear(); header << "At event: " << iev << " In File: " << inName;
+            succ.clear(); succ << "Number of successes = " << totalSuccess;
+            rej.clear(); rej << "Number of rejects = " << totalReject;
+            err.clear(); err << "Number of errors = " << totalError;
+            total.clear(); total << "Total Events so far = " << iev;
+            cout << header.str() << endl << succ.str() << endl << rej.str() << endl << err.str() << endl << total.str() << endl;
+        }
     }
+
+    // Log numbers
+    header.clear(); header << "END In File: " << inName;
+    succ.clear(); succ << "Number of successes = " << totalSuccess;
+    rej.clear(); rej << "Number of rejects = " << totalReject;
+    err.clear(); err << "Number of errors = " << totalError;
+    total.clear(); total << "Total Events = " << nEvents;
+    cout << header.str() << endl << succ.str() << endl << rej.str() << endl << err.str() << endl << total.str() << endl;
+
     analysis1->End();
     pythia8b->stat();
     delete analysis1;

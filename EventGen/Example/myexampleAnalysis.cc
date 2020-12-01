@@ -102,7 +102,7 @@ myexampleAnalysis::myexampleAnalysis(int imagesize)
     //model the detector as a 2D histogram
     //                         xbins       y bins
     detector_standard = new TH2D("", "", radius*5, -6.25, 6.25, radius*9, -11.25, 11.25);
-    for(int i = 1; i <= radius*5; i++)
+    for (int i = 1; i <= radius*5; i++)
     {
         for (int j = 1; j <= radius*9; j++)
         {
@@ -111,7 +111,7 @@ myexampleAnalysis::myexampleAnalysis(int imagesize)
     }
 
     detector_charged = new TH2D("", "", radius*5, -6.25, 6.25, radius*9, -11.25, 11.25);
-    for(int i = 1; i <= radius*5; i++)
+    for (int i = 1; i <= radius*5; i++)
     {
         for (int j = 1; j <= radius*9; j++)
         {
@@ -161,7 +161,7 @@ void myexampleAnalysis::End()
 }
 
 // Analyze
-void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8::Pythia* pythia_MB, int NPV,
+int myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8::Pythia* pythia_MB, int NPV,
     int pixels, float range, float ptjMin, float ptjMax, float etaMax, float massMin, float massMax,
     bool cambridge, bool reproduce)
 {
@@ -169,7 +169,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     if(fDebug) cout << "myexampleAnalysis::AnalyzeEvent Begin " << endl;
 
     // -------------------------
-    if (!pythia8->next()) return;
+    if (!pythia8->next()) return -1;
     if(fDebug) cout << "myexampleAnalysis::AnalyzeEvent Event Number " << ievt << endl;
 
     // reset branches
@@ -264,16 +264,16 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
         leading_jet_nopix_standard = considered_jets_nopix_standard[0];
     }
     if (bsmtruth.delta_R(leading_jet_nopix_standard) > 1.0) {  //Additional check to make sure jet matches truth level analysis.
-        return;
+        return 0;
     }
 
     fastjet::Filter trimmer(fastjet::JetDefinition(fastjet::kt_algorithm, 0.3), fastjet::SelectorPtFractionMin(0.05));
     PseudoJet resonance = trimmer(leading_jet_nopix_standard);
 
 
-    if (resonance.m() < massMin || resonance.m() > massMax) return;// Apply mass cut on jet
-    if (resonance.pt() < ptjMin || resonance.pt() > ptjMax) return; // Apply cut on pt of jet
-    if (fabs(resonance.eta()) > etaMax) return; // Apply cut on eta of jet
+    if (resonance.m() < massMin || resonance.m() > massMax) return 0;// Apply mass cut on jet
+    if (resonance.pt() < ptjMin || resonance.pt() > ptjMax) return 0; // Apply cut on pt of jet
+    if (fabs(resonance.eta()) > etaMax) return 0; // Apply cut on eta of jet
 
     // Repeat the above for charged, without cutoff.
     fTLeadingPhi_nopix_standard = leading_jet_nopix_standard.phi();
@@ -402,7 +402,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
         fTpull1_nopix_charged = get<0>(no_pix_pulls_charged);
         fTpull2_nopix_charged = get<1>(no_pix_pulls_charged);
     } catch(int e) {
-        return;
+        return -1;
     }
 
     fTdeltaR_standard = 0.;
@@ -440,7 +440,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     vector<pair<double, double>  > consts_image_charged;
     vector<fastjet::PseudoJet> sorted_consts_charged = sorted_by_pt(leading_jet_charged.constituents());
 
-    for(int i = 0; i < sorted_consts_standard.size(); i++)
+    for (unsigned int i = 0; i < sorted_consts_standard.size(); i++)
     {
         pair<double, double> const_hold;
         const_hold.first = sorted_consts_standard[i].eta();
@@ -448,7 +448,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
         consts_image_standard.push_back(const_hold);
     }
 
-    for(int i = 0; i < sorted_consts_charged.size(); i++)
+    for (unsigned int i = 0; i < sorted_consts_charged.size(); i++)
     {
         pair<double, double> const_hold;
         const_hold.first = sorted_consts_charged[i].eta();
@@ -463,7 +463,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     //Step 1: Center on the jet axis.
     fastjet::PseudoJet shiftjet_charged;
     shiftjet_charged.reset_momentum_PtYPhiM(1.,detector_charged->GetXaxis()->GetBinCenter(detector_charged->GetXaxis()->FindBin(subjets_charged[0].eta())),detector_charged->GetYaxis()->GetBinCenter(detector_charged->GetYaxis()->FindBin(subjets_charged[0].phi())),0.);
-    for (int i =0; i < sorted_consts_charged.size(); i++)
+    for (unsigned int i =0; i < sorted_consts_charged.size(); i++)
     {
       consts_image_charged[i].first = consts_image_charged[i].first-shiftjet_charged.eta();
       consts_image_charged[i].second = sorted_consts_charged[i].delta_phi_to(shiftjet_charged);
@@ -471,7 +471,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
 
     fastjet::PseudoJet shiftjet_standard;
     shiftjet_standard.reset_momentum_PtYPhiM(1.,detector_standard->GetXaxis()->GetBinCenter(detector_standard->GetXaxis()->FindBin(subjets_standard[0].eta())),detector_standard->GetYaxis()->GetBinCenter(detector_standard->GetYaxis()->FindBin(subjets_standard[0].phi())),0.);
-    for (int i =0; i < sorted_consts_standard.size(); i++)
+    for (unsigned int i =0; i < sorted_consts_standard.size(); i++)
     {
       consts_image_standard[i].first = consts_image_standard[i].first-shiftjet_standard.eta();
       consts_image_standard[i].second = sorted_consts_standard[i].delta_phi_to(shiftjet_standard);
@@ -492,7 +492,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     double xybar_charged = 0.;
     double n_charged = 0;
 
-    for(int i = 0; i < leading_jet_standard.constituents().size(); i++)
+    for (unsigned int i = 0; i < leading_jet_standard.constituents().size(); i++)
     {
         double x = consts_image_standard[i].first;
         double y = consts_image_standard[i].second;
@@ -502,7 +502,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
         ybar_standard+=y*E;
     }
 
-    for(int i = 0; i < leading_jet_charged.constituents().size(); i++)
+    for (unsigned int i = 0; i < leading_jet_charged.constituents().size(); i++)
     {
         double x = consts_image_charged[i].first;
         double y = consts_image_charged[i].second;
@@ -527,7 +527,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     ybar_charged = 0.;
     n_charged = 0.;
 
-    for(int i = 0; i < leading_jet_standard.constituents().size(); i++)
+    for (unsigned int i = 0; i < leading_jet_standard.constituents().size(); i++)
     {
         double x = consts_image_standard[i].first - mux_standard;
         double y = consts_image_standard[i].second - muy_standard;
@@ -540,7 +540,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
         xybar_standard+=x*y*E;
     }
 
-    for(int i = 0; i < leading_jet_charged.constituents().size(); i++)
+    for (unsigned int i = 0; i < leading_jet_charged.constituents().size(); i++)
     {
         double x = consts_image_charged[i].first - mux_charged;
         double y = consts_image_charged[i].second - muy_charged;
@@ -557,13 +557,11 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     double sigmay2_standard = y2bar_standard / n_standard - muy_standard * muy_standard;
     double sigmaxy_standard = xybar_standard / n_standard - mux_standard * muy_standard;
     double lamb_min_standard = 0.5 * (sigmax2_standard + sigmay2_standard - sqrt((sigmax2_standard - sigmay2_standard) * (sigmax2_standard - sigmay2_standard) + 4 * sigmaxy_standard * sigmaxy_standard));
-    double lamb_max_standard = 0.5 * (sigmax2_standard + sigmay2_standard + sqrt((sigmax2_standard - sigmay2_standard) * (sigmax2_standard - sigmay2_standard) + 4 * sigmaxy_standard * sigmaxy_standard));
 
     double sigmax2_charged = x2bar_charged / n_charged - mux_charged * mux_charged;
     double sigmay2_charged = y2bar_charged / n_charged - muy_charged * muy_charged;
     double sigmaxy_charged = xybar_charged / n_charged - mux_charged * muy_charged;
     double lamb_min_charged = 0.5 * (sigmax2_charged + sigmay2_charged - sqrt((sigmax2_charged - sigmay2_charged) * (sigmax2_charged - sigmay2_charged) + 4 * sigmaxy_charged * sigmaxy_charged));
-    double lamb_max_charged = 0.5 * (sigmax2_charged + sigmay2_charged + sqrt((sigmax2_charged - sigmay2_charged) * (sigmax2_charged - sigmay2_charged) + 4 * sigmaxy_charged * sigmaxy_charged));
 
 
     double dir_x_standard = sigmax2_standard + sigmaxy_standard - lamb_min_standard;
@@ -580,7 +578,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     double Eup_charged = 0.;
     double Edn_charged = 0.;
 
-    for(int i = 0; i < leading_jet_standard.constituents().size(); i++)
+    for (unsigned int i = 0; i < leading_jet_standard.constituents().size(); i++)
     {
         double x = consts_image_standard[i].first - mux_standard;
         double y = consts_image_standard[i].second - muy_standard;
@@ -593,7 +591,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
         }
     }
 
-    for(int i = 0; i < leading_jet_charged.constituents().size(); i++)
+    for (unsigned int i = 0; i < leading_jet_charged.constituents().size(); i++)
     {
 	double x = consts_image_charged[i].first - mux_charged;
         double y = consts_image_charged[i].second - muy_charged;
@@ -629,7 +627,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     TH2D* orig_im_charged = new TH2D("", "", pixels, -range, range, pixels, -range, range);
 
     // TLorentzVector image_mass_standard = TLorentzVector();
-    for (int i = 0; i < sorted_consts_standard.size(); i++)
+    for (unsigned int i = 0; i < sorted_consts_standard.size(); i++)
     {
       TLorentzVector hold = TLorentzVector();
       hold.SetPtEtaPhiM(sorted_consts_standard[i].perp(),consts_image_standard[i].first,consts_image_standard[i].second,0.);
@@ -637,7 +635,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
     }
 
     // TLorentzVector image_mass_charged = TLorentzVector();
-    for (int i = 0; i < sorted_consts_charged.size(); i++)
+    for (unsigned int i = 0; i < sorted_consts_charged.size(); i++)
     {
       TLorentzVector hold = TLorentzVector();
       hold.SetPtEtaPhiM(sorted_consts_charged[i].perp(),consts_image_charged[i].first,consts_image_charged[i].second,0.);
@@ -722,7 +720,7 @@ void myexampleAnalysis::AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8
 
     tT_charged->Fill();
 
-    return;
+    return 1;
 }
 
 // declare branches
@@ -1002,7 +1000,7 @@ Mat3d myexampleAnalysis::Ecorel( const vector<PseudoJet> & input_particles,  Pse
     PseudoJet myJet, myJeti;
 
 	double dR=9999.0;
-	for (int j = 0; j < antikt_jets.size(); j++) {
+	for (unsigned int j = 0; j < antikt_jets.size(); j++) {
         double dR2= resonance.delta_R(antikt_jets[j]);
 		if( dR2 < dR) {
     		myJeti=antikt_jets[j]; dR= dR2;

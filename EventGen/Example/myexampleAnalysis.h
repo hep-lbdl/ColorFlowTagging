@@ -35,7 +35,7 @@ class myexampleAnalysis
         ~myexampleAnalysis();
 
         void Begin();
-        void AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8::Pythia* pythia_MB,
+        int AnalyzeEvent(int ievt, Pythia8::Pythia* pythia8, Pythia8::Pythia* pythia_MB,
                 int NPV, int pixels, float range, float ptjMin, float ptjMax, float etaMax, float massMin, float massMax,
                 bool cambridge, bool reproduce);
 
