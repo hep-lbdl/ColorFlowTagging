@@ -5,7 +5,7 @@ mass="125.0"
 width="0.00407"
 particle_dir="Xquark_UFO"
 particle_tag="qx"
-process_type="qg" # "gg" or "qq" or "qg" or "q~g"
+process_type="qg" # "gg" or "qq" or "qg" or "q~g" or "jj"
 
 # ENVIRONMENT VARIABLES
 mg5loc="/phys/users/balbok/Programs/MG5_aMC_v2_5_5/bin/mg5_aMC"
@@ -29,6 +29,8 @@ elif [[ $process_type = "qq" ]]; then
 	process=$process" q q~"
 elif [[ $process_type = "qg" ]]; then
 	process=$process" q g"
+elif [[ $process_type = "jj" ]]; then
+	process=$process" j j"
 else
 	process=$process" q~ g"
 fi
@@ -36,6 +38,8 @@ fi
 # Start building script.
 if [[ $particle_tag = "h" ]]; then
 	echo "import model heft" >> $script_name
+elif [[ $particle_tag = "six" ]]; then
+	echo "import sextet_diquarks" >> $script_name
 else
 	echo "import model $ufoloc" >> $script_name
 fi
